@@ -27,18 +27,25 @@ def request_data(start, stop, symbol, interval, tick_limit, step):
     return data
 
 
-def exchange_historical_data(symbol):
+def generate_date_sequence(end_date_seq):
+
+    symbol = end_date_seq[-1][0]
+
+    end_date = end_date_seq[-1][-1]
+
+    return end_date_seq.append([symbol, end_date, end_date - timedelta(minutes=600)])
+
+
+def request_and_generate_dataframe(params, df):
 
     # Set step size
     time_step = 60000000
 
     # Define the start date
-    t_start = datetime(2018, 4, 1, 0, 0)
-    t_start = mktime(t_start.timetuple()) * 1000
+    t_start = time.mktime(params[1].timetuple()) * 1000
 
     # Define the end date
-    t_stop = datetime(2018, 5, 1, 0, 0)
-    t_stop = mktime(t_stop.timetuple()) * 1000
+    t_stop = time.mktime(params[2].timetuple()) * 1000
 
     # This will return minute data
     time_frame = "1m"
