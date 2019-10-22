@@ -1,11 +1,13 @@
 # Load the Pandas libraries with alias "pd"
 import pandas as pd
+import functools
 import bitfinex
+import time
+import sys
 
 # Load OrederedDict from collections
 from datetime import datetime, timedelta, timezone
 from collections import OrderedDict
-from time import mktime
 
 
 def request_data(start, stop, symbol, interval, tick_limit, step):
