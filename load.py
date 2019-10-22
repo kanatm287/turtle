@@ -59,10 +59,40 @@ def request_and_generate_dataframe(params, df):
 
     names = ["date", "open", "close", "high", "low", "volume"]
 
-    df = pd.DataFrame(request_data(start=t_start, stop=t_stop, symbol=symbol.lower(),
-                                   interval=time_frame, tick_limit=limit,
-                                   step=time_step),
-                      columns=names)
+    new_df = pd.DataFrame(request_data(start=t_start, stop=t_stop, symbol=params[0].lower(),
+                                       interval=time_frame, tick_limit=limit,
+                                       step=time_step),
+                          columns=names)
+
+    if df.empty:
+        time.sleep(1)
+        return new_df
+    else:
+        time.sleep(1)
+        return pd.concat([df, new_df])
+
+
+def exchange_historical_data(symbol, days_to_load):
+
+    minutes_to_load = days_to_load * 24 * 60
+
+    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    date_seq = [[symbol, end_date, end_date - timedelta(minutes=600)]]
+
+    periods = int(minutes_to_load / 600)
+
+    print(periods)
+
+    while periods > 0:
+
+        generate_date_sequence(date_seq)
+
+        periods -= 1
+
+    df = functools.reduce(lambda a, b: request_and_generate_dataframe(b, a),
+                          date_seq,
+                          pd.DataFrame())
 
     df.drop_duplicates(inplace=True)
 
@@ -75,4 +105,4 @@ def request_and_generate_dataframe(params, df):
     return df
 
 
-print(exchange_historical_data("BTCUSD"))
+print(exchange_historical_data("BTCUSD", 10))
