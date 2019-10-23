@@ -11,6 +11,7 @@ from zipline.api import \
     set_slippage
 
 from zipline.finance import slippage
+from trading_calendars import always_open
 from multiprocessing import Pool
 from datetime import datetime
 from pandas import Timedelta
@@ -21,6 +22,7 @@ import numpy as np
 import zipline
 import sys
 import os
+import pytz
 
 
 # symbol = sys.argv[1]
@@ -37,9 +39,9 @@ class BackTest(object):
 
         self.hourly_data = params["hour_data"]
 
-        self.start_session = params["start_session"],
+        self.start_session = params["start_session"]
 
-        self.end_session = params["end_session"],
+        self.end_session = params["end_session"]
 
         self.current_high_average = None
 
@@ -49,7 +51,10 @@ class BackTest(object):
 
     def initialize(self, context):
 
+        context.set_benchmark(symbol(self.symbol))
+
         context.set_slippage(slippage.NoSlippage())
+
         context.scheduled_data = {}
 
     def position_not_exists(self, context):
@@ -116,9 +121,9 @@ class BackTest(object):
 
     def handle_data(self, context, data):
 
-        current_price = data.current(symbol(self.symbol), 'price')
+        current_price = data.current(symbol(self.symbol), "price")
 
-        current_time = pd.Timestamp(get_datetime()).tz_convert('US/Eastern')
+        current_time = pd.Timestamp(get_datetime()).tz_convert("US/Eastern")
 
         self.set_last_hour_params(current_time)
 
@@ -127,9 +132,10 @@ class BackTest(object):
         performance = zipline.run_algorithm(start=self.start_session,
                                             end=self.end_session,
                                             initialize=self.initialize,
+                                            trading_calendar=always_open.AlwaysOpenCalendar(),
                                             capital_base=100000,
                                             handle_data=self.handle_data,
-                                            data_frequency='minute',
+                                            data_frequency="minute",
                                             data=self.minute_data)
 
         algo_period_return = performance.algorithm_period_return[-1]
@@ -145,11 +151,4 @@ class BackTest(object):
                 "data_frame": performance}
 
 
-def trade_emulation(arguments):
-
-    return BackTest(arguments).performance
-
-
-test_params = utils.initial_test_params("BTCUSD", 365, 20, 55)
-
-trade_emulation(test_params)
+result = BackTest(utils.initial_test_params("BTCUSD", 365, 20, 55)).performance
