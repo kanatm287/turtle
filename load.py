@@ -35,10 +35,12 @@ def generate_date_sequence(end_date_seq):
 
     end_date = end_date_seq[-1][-1]
 
-    return end_date_seq.append([symbol, end_date, end_date - timedelta(minutes=600)])
+    return end_date_seq.append([symbol, end_date, end_date - timedelta(minutes=600), end_date - timedelta(minutes=660)])
 
 
 def request_and_generate_dataframe(params, df):
+
+    # print(params)
 
     # Set step size
     time_step = 60000000
@@ -53,7 +55,7 @@ def request_and_generate_dataframe(params, df):
     time_frame = "1m"
 
     # We want the maximum of 1000 data points
-    limit = 1000
+    limit = 660
 
     # Create pandas data frame and clean/format data
 
@@ -82,8 +84,6 @@ def exchange_historical_data(symbol, days_to_load):
 
     periods = int(minutes_to_load / 600)
 
-    print(periods)
-
     while periods > 0:
 
         generate_date_sequence(date_seq)
@@ -105,4 +105,3 @@ def exchange_historical_data(symbol, days_to_load):
     return df
 
 
-print(exchange_historical_data("BTCUSD", 10))
