@@ -1,26 +1,22 @@
-import pre_process
+from functools import reduce
 import pandas as pd
 
-from functools import reduce
 
+def generate(data_frame):
 
-def generate(symbol, days):
+    data_frame["date_hour_string"] = data_frame.index.strftime("%Y-%m-%d-%H")
 
-    minute_data = pre_process.minute_data(symbol, days)
+    hourly_data_open = data_frame.groupby("date_hour_string").first().reset_index()[["date_hour_string", "open"]]
 
-    minute_data["date_hour_string"] = minute_data.index.strftime("%Y-%m-%d-%H")
+    hourly_data_high = data_frame.groupby("date_hour_string").max().reset_index()[["date_hour_string", "high"]]
 
-    hourly_data_open = minute_data.groupby("date_hour_string").first().reset_index()[["date_hour_string", "open"]]
+    hourly_data_low = data_frame.groupby("date_hour_string").min().reset_index()[["date_hour_string", "low"]]
 
-    hourly_data_high = minute_data.groupby("date_hour_string").max().reset_index()[["date_hour_string", "high"]]
+    hourly_data_close = data_frame.groupby("date_hour_string").last().reset_index()[["date_hour_string", "close"]]
 
-    hourly_data_low = minute_data.groupby("date_hour_string").min().reset_index()[["date_hour_string", "low"]]
+    hourly_data_volume = data_frame.groupby("date_hour_string").sum().reset_index()[["date_hour_string", "volume"]]
 
-    hourly_data_close = minute_data.groupby("date_hour_string").last().reset_index()[["date_hour_string", "close"]]
-
-    hourly_data_volume = minute_data.groupby("date_hour_string").sum().reset_index()[["date_hour_string", "volume"]]
-
-    data_frames = [minute_data.reset_index().drop(columns=["open", "high", "low", "close", "volume"]),
+    data_frames = [data_frame.reset_index().drop(columns=["open", "high", "low", "close", "volume"]),
                    hourly_data_open,
                    hourly_data_high,
                    hourly_data_low,
@@ -33,7 +29,4 @@ def generate(symbol, days):
 
     hourly_data.sort_index(inplace=True)
 
-    return hourly_data[hourly_data.index.minute == 59]
-
-
-print(generate("BTCUSD", 365))
+    return hourly_data[hourly_data.index.minute == 59].drop(columns=["date_hour_string"])
