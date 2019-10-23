@@ -1,34 +1,26 @@
 from collections import OrderedDict
-from pandas import Timedelta
-from datetime import datetime
+from datetime import timedelta
 
 import pandas as pd
 import pre_process
 import hourly_data
 import turtle_data
 import math
-import pytz
 
 
 def start_date(data_frame):
 
-    return data_frame.index[0]
+    return data_frame.reset_index().iloc[0].loc["date"].tz_localize("UTC").to_pydatetime()
 
 
 def end_date(data_frame):
 
-    return data_frame.index[-1]
+    return data_frame.reset_index().iloc[-1].loc["date"].tz_localize("UTC").to_pydatetime()
 
 
 def generate_minute_test_data(symbol, data_frame):
 
     data = OrderedDict()
-
-    # data_frame = data_frame.reset_index()
-    #
-    # pd.DatetimeIndex(data_frame["date"]).asi8
-    #
-    # print(data_frame.dtypes)
 
     data[symbol] = data_frame
 
@@ -36,9 +28,6 @@ def generate_minute_test_data(symbol, data_frame):
 
     panel = pd.Panel(data)
     panel.minor_axis = ["open", "high", "low", "close", "volume"]
-    panel.major_axis = panel.major_axis.tz_localize(pytz.utc)
-
-    # panel.major_axis = panel.major_axis.tz_convert(None)
 
     return panel
 
@@ -54,6 +43,5 @@ def initial_test_params(symbol, days_to_load, average_true_range_period, high_lo
     return {"symbol": symbol,
             "minute_data": generate_minute_test_data(symbol, minute_data_frame),
             "hour_data": hour_data_frame,
-            "start_session": (start_date(minute_data_frame) +
-                              Timedelta(days=int(math.ceil(high_low_period/24)))).to_pydatetime(),
-            "end_session": end_date(minute_data_frame).to_pydatetime()}
+            "start_session": start_date(minute_data_frame) + timedelta(days=int(math.ceil(high_low_period/24))),
+            "end_session": end_date(minute_data_frame)}
