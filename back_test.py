@@ -145,51 +145,146 @@ class BackTest(object):
         self.set_last_hour_params(context, current_time)
 
         # Open long position
-        if self.current_high_average:
-            if current_price > self.current_high_average:
-                print("buy")
-                print("portfolio value", self.current_portfolio_value)
-                print("dollar volatility", self.current_dollar_volatility)
-                print("ATR", self.current_average_true_range)
-                print("price", current_price)
-                print("unit", self.current_unit_size)
-                order_target_percent(symbol(self.symbol), self.current_unit_size)
+        if self.order_not_exists() and self.trades_left > 0 and not self.short_is_active:
+            if self.current_high_average_entry:
+                if current_price > self.current_high_average_entry:
+                    if self.trades_left == 4:
+                        print("buy initial trade")
+                        print("current time", current_time, "current price", current_price)
+                        order_target_percent(symbol(self.symbol), self.current_unit_size)
+                        self.trades_left = self.trades_left - 1
+                        self.price_change_permission = True
+                        self.stop_loss_permission = True
+                        self.last_trade_price = current_price
+                        self.long_is_active = True
+                        self.short_is_active = False
+
+                    elif self.next_approved_trade_price and \
+                            self.long_is_active > 0 and current_price > self.next_approved_trade_price:
+                        print("sell additional trade")
+                        print("current time", current_time, "current price", current_price)
+                        order_target_percent(symbol(self.symbol), (5 - self.trades_left) * self.current_unit_size)
+                        self.trades_left = self.trades_left - 1
+                        self.price_change_permission = True
+                        self.last_trade_price = current_price
+                        self.long_is_active = True
+                        self.short_is_active = False
+                    else:
+                        pass
 
         # Open short position
-        if self.current_low_average:
-            if current_price < self.current_low_average:
-                print("sell")
-                print("portfolio value", self.current_portfolio_value)
-                print("dollar volatility", self.current_dollar_volatility)
-                print("ATR", self.current_average_true_range)
-                print("price", current_price)
-                print("unit", self.current_unit_size)
-                order_target_percent(symbol(self.symbol), -1 * self.current_unit_size)
+        if self.order_not_exists() and self.trades_left > 0 and not self.long_is_active:
+            if self.current_low_average_entry:
+                if current_price < self.current_low_average_entry:
+                    if self.trades_left == 4:
+                        print("sell initial trade")
+                        print("current time", current_time, "current price", current_price)
+                        order_target_percent(symbol(self.symbol), -1 * self.current_unit_size)
+                        self.trades_left = self.trades_left - 1
+                        self.price_change_permission = True
+                        self.stop_loss_permission = True
+                        self.last_trade_price = current_price
+                        self.long_is_active = False
+                        self.short_is_active = True
+                    elif self.next_approved_trade_price and \
+                            self.short_is_active and current_price < self.next_approved_trade_price:
+                        print("sell additional trade")
+                        print("current time", current_time, "current price", current_price)
+                        order_target_percent(symbol(self.symbol), -(5 - self.trades_left) * self.current_unit_size)
+                        print("position", context.portfolio.positions[symbol(self.symbol)])
+                        self.trades_left = self.trades_left - 1
+                        self.price_change_permission = True
+                        self.last_trade_price = current_price
+                        self.long_is_active = False
+                        self.short_is_active = True
+                    else:
+                        pass
+
+        # Set stop loss price,
+        if self.order_not_exists() and self.stop_loss_permission:
+            print("last traded price", self.trade_price(context))
+            if self.long_is_active:
+                self.stop_loss_price = self.trade_price(context) - (2 * self.current_average_true_range)
+                print("set stop loss for long", self.stop_loss_price)
+                self.stop_loss_permission = False
+            elif self.short_is_active:
+                self.stop_loss_price = self.trade_price(context) + (2 * self.current_average_true_range)
+                print("set stop loss for short", self.stop_loss_price)
+                self.stop_loss_permission = False
+            print("position", self.position(context))
+
+        # Calculate next approved trade price
+        if self.last_trade_price and self.price_change_permission:
+            if self.long_is_active:
+                if self.trades_left == 4:
+                    self.next_approved_trade_price = self.trade_price(context) + self.current_average_true_range / 2
+                else:
+                    self.next_approved_trade_price = self.last_trade_price + self.current_average_true_range / 2
+                self.price_change_permission = False
+                print("set trade params")
+                print("current time", current_time, "current price", current_price)
+                print("trades left", self.trades_left)
+                print("ATR/2", self.current_average_true_range / 2,
+                      "next approved price", self.next_approved_trade_price)
+
+            elif self.short_is_active:
+                if self.trades_left == 4:
+                    self.next_approved_trade_price = self.trade_price(context) - self.current_average_true_range / 2
+                else:
+                    self.next_approved_trade_price = self.last_trade_price - self.current_average_true_range / 2
+                self.price_change_permission = False
+                print("set trade params")
+                print("current time", current_time, "current price", current_price, "last price", self.last_trade_price)
+                print("trades left", self.trades_left)
+                print("ATR/2", self.current_average_true_range / 2,
+                      "next approved price", self.next_approved_trade_price)
+
+        # Stop Loss
+        if self.position_exists(context) and self.order_not_exists():
+            if self.long_is_active:
+                if current_price < self.stop_loss_price:
+                    order_target_percent(symbol(self.symbol), 0)
+                    print("stop loss, close long position")
+                    print("current time", current_time, "current price", current_price)
+                    print("stop loss price", self.stop_loss_price)
+                    print("portfolio value", context.portfolio.portfolio_value)
+                    self.initial_trade_params()
+            elif self.short_is_active:
+                if current_price > self.stop_loss_price:
+                    order_target_percent(symbol(self.symbol), 0)
+                    print("stop loss, close short position")
+                    print("current time", current_time, "current price", current_price)
+                    print("stop loss price", self.stop_loss_price)
+                    print("portfolio value", context.portfolio.portfolio_value)
+                    self.initial_trade_params()
+
+        # Take profit
+        if self.position_exists(context) and self.order_not_exists():
+            if self.long_is_active and self.current_low_average_exit:
+                if self.trade_price(context) < current_price < self.current_low_average_exit:
+                    order_target_percent(symbol(self.symbol), 0)
+                    self.initial_trade_params()
+                    print("take profit, close long position")
+                    print("portfolio value", context.portfolio.portfolio_value)
+            elif self.short_is_active and self.current_high_average_exit:
+                if self.trade_price(context) > current_price > self.current_high_average_exit:
+                    order_target_percent(symbol(self.symbol), 0)
+                    self.initial_trade_params()
+                    print("take profit, close short position")
+                    print("portfolio value", context.portfolio.portfolio_value)
 
     def get_performance(self):
 
-        performance = zipline.run_algorithm(start=self.start_session,
-                                            end=self.end_session,
-                                            initialize=self.initialize,
-                                            trading_calendar=always_open.AlwaysOpenCalendar(),
-                                            capital_base=self.initial_portfolio_value,
-                                            handle_data=self.handle_data,
-                                            data_frequency="minute",
-                                            data=self.minute_data)
-
-        algo_period_return = performance.algorithm_period_return[-1]
-        max_drawdown = performance.max_drawdown[-1] if performance.max_drawdown[-1] != 0 else 0.0001
-
-        return {"symbol": self.symbol,
-                "start_session": self.start_session,
-                "end_session": self.end_session,
-                "algorithm_period_return": round(algo_period_return, 4),
-                "portfolio_value": performance.portfolio_value[-1],
-                "max_drawdown": round(max_drawdown, 4),
-                "profit_factor": algo_period_return / abs(max_drawdown),
-                "data_frame": performance}
+        return zipline.run_algorithm(start=self.start_session,
+                                     end=self.end_session,
+                                     initialize=self.initialize,
+                                     trading_calendar=always_open.AlwaysOpenCalendar(),
+                                     capital_base=self.initial_portfolio_value,
+                                     handle_data=self.handle_data,
+                                     data_frequency="minute",
+                                     data=self.minute_data)
 
 
-result = BackTest(utils.initial_test_params("BTCUSD", 365, 20, 55, 1000000)).performance
+result = BackTest(utils.initial_test_params("BTCUSD", 365, 20, 55, 20, 1000000)).performance
 
 print(result)
