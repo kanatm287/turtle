@@ -10,19 +10,14 @@ from zipline.api import \
     record, \
     set_slippage
 
+
 from zipline.finance import slippage
 from trading_calendars import always_open
-from multiprocessing import Pool
-from datetime import datetime
-from pandas import Timedelta
 
 import back_test_utils as utils
 import pandas as pd
-import numpy as np
 import zipline
 import sys
-import os
-import pytz
 
 
 # symbol = sys.argv[1]
@@ -36,26 +31,35 @@ class BackTest(object):
         self.symbol = params["symbol"]
 
         self.minute_data = params["minute_data"]
-
         self.hourly_data = params["hour_data"]
 
         self.start_session = params["start_session"]
-
         self.end_session = params["end_session"]
 
         self.initial_portfolio_value = params["portfolio_value"]
 
-        self.current_portfolio_value = self.initial_portfolio_value
+        self.current_high_average_entry = None
+        self.current_low_average_entry = None
 
-        self.current_high_average = None
-
-        self.current_low_average = None
+        self.current_high_average_exit = None
+        self.current_low_average_exit = None
 
         self.current_average_true_range = None
-
         self.current_dollar_volatility = None
 
         self.current_unit_size = None
+
+        self.last_trade_price = None
+        self.stop_loss_price = None
+        self.next_approved_trade_price = None
+
+        self.price_change_permission = False
+        self.stop_loss_permission = False
+
+        self.short_is_active = False
+        self.long_is_active = False
+
+        self.trades_left = 4
 
         self.performance = self.get_performance()
 
@@ -63,7 +67,7 @@ class BackTest(object):
 
         context.set_benchmark(symbol(self.symbol))
 
-        context.set_slippage(slippage.NoSlippage())
+        # context.set_slippage(slippage.NoSlippage())
 
         context.scheduled_data = {}
 
@@ -109,32 +113,23 @@ class BackTest(object):
 
             params = self.hourly_data.loc[self.hourly_data["date"] == current_time]
 
-            self.current_high_average = params.iloc[0]["average_high"]
-            self.current_low_average = params.iloc[0]["average_low"]
+            self.current_high_average_entry = params.iloc[0]["average_high_entry"]
+            self.current_low_average_entry = params.iloc[0]["average_low_entry"]
+
+            self.current_high_average_exit = params.iloc[0]["average_high_exit"]
+            self.current_low_average_exit = params.iloc[0]["average_low_exit"]
+
             self.current_average_true_range = params.iloc[0]["average_true_range"]
             self.current_dollar_volatility = params.iloc[0]["dollar_volatility"]
 
-            self.current_portfolio_value = context.portfolio.portfolio_value
+            self.current_unit_size = 0.01 * context.portfolio.portfolio_value / self.current_dollar_volatility
 
-            self.current_unit_size = 0.01 * self.current_portfolio_value / self.current_dollar_volatility
+    def initial_trade_params(self):
 
-    def set_trades_count(self, context):
-
-        return None
-
-        # if context.stop_trades <= self.max_trades_per_day[0]:
-        #     self.stop_trades = True
-        # else:
-        #     self.stop_trades = False
-        #
-        # if context.limit_trades <= self.max_trades_per_day[1]:
-        #     self.limit_trades = True
-        # else:
-        #     self.limit_trades = False
-
-    def check_and_trade(self, context, current_price, current_time, data):
-
-        return None
+        self.trades_left = 4
+        self.last_trade_price = None
+        self.next_approved_trade_price = None
+        self.stop_loss_price = None
 
     def handle_data(self, context, data):
 

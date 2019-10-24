@@ -17,7 +17,11 @@ def minute_data(symbol, days):
 
         minute_dataframe.reset_index(level=0, inplace=True)
 
-        minute_dataframe = minute_dataframe.merge(minute_dataframe.groupby("date_string").size().to_frame("count"),
+        minute_dataframe = minute_dataframe.merge(minute_dataframe
+                                                  .groupby("date_string")
+                                                  .size()
+                                                  .to_frame("count")
+                                                  .reset_index(),
                                                   on="date_string",
                                                   how='inner')
 
