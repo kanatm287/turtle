@@ -39,4 +39,4 @@ def prepare(data_frame, average_true_range_period, high_low_period):
 
     data_frame = high_low(data_frame, high_low_period)
 
-    return data_frame
+    return data_frame.reset_index()
