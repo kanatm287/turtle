@@ -22,21 +22,23 @@ def dollar_volatility(data_frame):
     return data_frame
 
 
-def high_low(data_frame, period):
+def high_low(data_frame, high_name, low_name, period):
 
-    data_frame["average_high"] = data_frame["high"].rolling(window=period).mean().fillna(method="backfill")
+    data_frame[high_name] = data_frame["high"].rolling(window=period).mean().fillna(method="backfill")
 
-    data_frame["average_low"] = data_frame["low"].rolling(window=period).mean().fillna(method="backfill")
+    data_frame[low_name] = data_frame["low"].rolling(window=period).mean().fillna(method="backfill")
 
     return data_frame
 
 
-def prepare(data_frame, average_true_range_period, high_low_period):
+def prepare(data_frame, average_true_range_period, entry_high_low_period, exit_high_low_period):
 
     data_frame = average_true_range(average_true_range_period, data_frame)
 
     data_frame = dollar_volatility(data_frame)
 
-    data_frame = high_low(data_frame, high_low_period)
+    data_frame = high_low(data_frame, "average_high_entry", "average_low_entry", entry_high_low_period)
+
+    data_frame = high_low(data_frame, "average_high_exit", "average_low_exit", exit_high_low_period)
 
     return data_frame.reset_index()
