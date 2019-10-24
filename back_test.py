@@ -43,9 +43,19 @@ class BackTest(object):
 
         self.end_session = params["end_session"]
 
+        self.initial_portfolio_value = params["portfolio_value"]
+
+        self.current_portfolio_value = self.initial_portfolio_value
+
         self.current_high_average = None
 
         self.current_low_average = None
+
+        self.current_average_true_range = None
+
+        self.current_dollar_volatility = None
+
+        self.current_unit_size = None
 
         self.performance = self.get_performance()
 
@@ -93,13 +103,20 @@ class BackTest(object):
         else:
             return False
 
-    def set_last_hour_params(self, current_time):
+    def set_last_hour_params(self, context, current_time):
 
-        if current_time.minute % 59 == 0:
+        if current_time.minute == 59:
 
-            print(current_time)
+            params = self.hourly_data.loc[self.hourly_data["date"] == current_time]
 
-            # self.current_high_average = self.hourly_data.loc[]
+            self.current_high_average = params.iloc[0]["average_high"]
+            self.current_low_average = params.iloc[0]["average_low"]
+            self.current_average_true_range = params.iloc[0]["average_true_range"]
+            self.current_dollar_volatility = params.iloc[0]["dollar_volatility"]
+
+            self.current_portfolio_value = context.portfolio.portfolio_value
+
+            self.current_unit_size = 0.01 * self.current_portfolio_value / self.current_dollar_volatility
 
     def set_trades_count(self, context):
 
@@ -123,9 +140,31 @@ class BackTest(object):
 
         current_price = data.current(symbol(self.symbol), "price")
 
-        current_time = pd.Timestamp(get_datetime()).tz_convert("US/Eastern")
+        current_time = pd.Timestamp(get_datetime())
 
-        self.set_last_hour_params(current_time)
+        self.set_last_hour_params(context, current_time)
+
+        # Open long position
+        if self.current_high_average:
+            if current_price > self.current_high_average:
+                print("buy")
+                print("portfolio value", self.current_portfolio_value)
+                print("dollar volatility", self.current_dollar_volatility)
+                print("ATR", self.current_average_true_range)
+                print("price", current_price)
+                print("unit", self.current_unit_size)
+                order_target_percent(symbol(self.symbol), self.current_unit_size)
+
+        # Open short position
+        if self.current_low_average:
+            if current_price < self.current_low_average:
+                print("sell")
+                print("portfolio value", self.current_portfolio_value)
+                print("dollar volatility", self.current_dollar_volatility)
+                print("ATR", self.current_average_true_range)
+                print("price", current_price)
+                print("unit", self.current_unit_size)
+                order_target_percent(symbol(self.symbol), -1 * self.current_unit_size)
 
     def get_performance(self):
 
@@ -133,7 +172,7 @@ class BackTest(object):
                                             end=self.end_session,
                                             initialize=self.initialize,
                                             trading_calendar=always_open.AlwaysOpenCalendar(),
-                                            capital_base=100000,
+                                            capital_base=self.initial_portfolio_value,
                                             handle_data=self.handle_data,
                                             data_frequency="minute",
                                             data=self.minute_data)
@@ -151,4 +190,6 @@ class BackTest(object):
                 "data_frame": performance}
 
 
-result = BackTest(utils.initial_test_params("BTCUSD", 365, 20, 55)).performance
+result = BackTest(utils.initial_test_params("BTCUSD", 365, 20, 55, 1000000)).performance
+
+print(result)
