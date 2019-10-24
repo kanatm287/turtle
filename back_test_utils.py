@@ -32,17 +32,23 @@ def generate_minute_test_data(symbol, data_frame):
     return panel
 
 
-def initial_test_params(symbol, days_to_load, average_true_range_period, high_low_period, initial_balance):
+def initial_test_params(symbol,
+                        days_to_load,
+                        average_true_range_period,
+                        entry_high_low_period,
+                        exit_high_low_period,
+                        initial_balance):
 
     minute_data_frame = pre_process.minute_data(symbol, days_to_load)
 
     hour_data_frame = turtle_data.prepare(hourly_data.generate(minute_data_frame),
                                           average_true_range_period,
-                                          high_low_period)
+                                          entry_high_low_period,
+                                          exit_high_low_period)
 
     return {"symbol": symbol,
             "portfolio_value": initial_balance,
             "minute_data": generate_minute_test_data(symbol, minute_data_frame),
             "hour_data": hour_data_frame,
-            "start_session": start_date(minute_data_frame) + timedelta(days=int(math.ceil(high_low_period/24))),
+            "start_session": start_date(minute_data_frame) + timedelta(days=int(math.ceil(entry_high_low_period/24))),
             "end_session": end_date(minute_data_frame)}
