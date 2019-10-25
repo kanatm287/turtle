@@ -31,7 +31,7 @@ def candle_sticks(data_frame):
     fig.show()
 
 
-hour_data_frame = turtle_data.prepare(hourly_data.generate(pre_process.minute_data("BTCUSD", 55)), 20, 55, 20)
+# hour_data_frame = turtle_data.prepare(hourly_data.generate(pre_process.minute_data("BTCUSD", 55)), 20, 55, 20)
 
 # candle_sticks(hour_data_frame)
 
@@ -41,13 +41,15 @@ hour_data_frame = turtle_data.prepare(hourly_data.generate(pre_process.minute_da
 #            "average_high_entry",
 #            "average_low_entry",
 #            "average_high_exit",
-#            "average_low_exit"]
+#            "average_low_exit",
+#            "average_true_range"]
 
-hour_data_frame = hour_data_frame.set_index("date")
-
-line_chart(hour_data_frame.head(1000),
-           [{"color": "red", "column": "close"},
-            {"color": "green", "column": "average_high_entry"},
-            {"color": "blue", "column": "average_low_entry"}])#,
-            # {"color": "brown", "column": "average_high_exit"},
-            # {"color": "black", "column": "average_low_exit"}])
+# hour_data_frame = hour_data_frame.set_index("date")
+#
+# line_chart(hour_data_frame.head(1000),
+#            [{"color": "red", "column": "close"},
+#             {"color": "green", "column": "average_high_entry"},
+#             {"color": "blue", "column": "average_low_entry"},
+#             {"color": "blue", "column": "average_true_range"}])  # ,
+#             # {"color": "brown", "column": "average_high_exit"},
+#             # {"color": "black", "column": "average_low_exit"}])
