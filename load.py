@@ -1,13 +1,9 @@
-# Load the Pandas libraries with alias "pd"
 import pandas as pd
 import functools
 import bitfinex
 import time
-import sys
 
-# Load OrederedDict from collections
-from datetime import datetime, timedelta, timezone
-from collections import OrderedDict
+from datetime import datetime, timedelta
 
 
 def request_data(start, stop, symbol, interval, tick_limit, step):
@@ -24,18 +20,9 @@ def request_data(start, stop, symbol, interval, tick_limit, step):
 
     end = start + step
 
-    res = api_v2.candles(symbol=symbol, interval=interval, limit = tick_limit, start = start, end = end)
+    res = api_v2.candles(symbol=symbol, interval=interval, limit=tick_limit, start=start, end=end)
     data.extend(res)
     return data
-
-
-def generate_date_sequence(end_date_seq):
-
-    symbol = end_date_seq[-1][0]
-
-    end_date = end_date_seq[-1][-1]
-
-    return end_date_seq.append([symbol, end_date, end_date - timedelta(minutes=600), end_date - timedelta(minutes=660)])
 
 
 def request_and_generate_dataframe(params, df):
@@ -55,7 +42,7 @@ def request_and_generate_dataframe(params, df):
     time_frame = "1m"
 
     # We want the maximum of 1000 data points
-    limit = 660
+    limit = 720
 
     # Create pandas data frame and clean/format data
 
@@ -67,22 +54,31 @@ def request_and_generate_dataframe(params, df):
                           columns=names)
 
     if df.empty:
-        time.sleep(1)
+        time.sleep(1.1)
         return new_df
     else:
-        time.sleep(1)
+        time.sleep(1.1)
         return pd.concat([df, new_df])
+
+
+def generate_date_sequence(end_date_seq):
+
+    symbol = end_date_seq[-1][0]
+
+    end_date = end_date_seq[-1][-1]
+
+    return end_date_seq.append([symbol, end_date, end_date - timedelta(minutes=720)])
 
 
 def exchange_historical_data(symbol, days_to_load):
 
     minutes_to_load = days_to_load * 24 * 60
 
-    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
 
-    date_seq = [[symbol, end_date, end_date - timedelta(minutes=600)]]
+    date_seq = [[symbol, end_date, end_date - timedelta(minutes=720)]]
 
-    periods = int(minutes_to_load / 600)
+    periods = int(minutes_to_load / 720)
 
     while periods > 0:
 
