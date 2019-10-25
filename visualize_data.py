@@ -4,6 +4,26 @@ import hourly_data
 import pre_process
 
 
+def algo_vs_benchmark(data_frame, algo, benchmark):
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=data_frame.index,
+                             y=data_frame[algo],
+                             name="algo",
+                             line_color="red",
+                             opacity=0.8))
+
+    fig.add_trace(go.Scatter(x=data_frame.index,
+                             y=data_frame[benchmark],
+                             name="benchmark",
+                             line_color="blue",
+                             opacity=0.8))
+
+    fig.update_layout(title_text="Chart")
+    fig.show()
+
+
 def line_chart(data_frame, columns):
 
     fig = go.Figure()
