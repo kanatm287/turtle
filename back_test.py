@@ -43,11 +43,11 @@ class BackTest(object):
 
         self.initial_portfolio_value = params["portfolio_value"]
 
-        self.current_high_average_entry = None
-        self.current_low_average_entry = None
+        self.current_high_entry = None
+        self.current_low_entry = None
 
-        self.current_high_average_exit = None
-        self.current_low_average_exit = None
+        self.current_high_exit = None
+        self.current_low_exit = None
 
         self.current_average_true_range = None
         self.current_dollar_volatility = None
@@ -100,11 +100,11 @@ class BackTest(object):
 
             params = self.hourly_data.loc[self.hourly_data["date"] == current_time]
 
-            self.current_high_average_entry = params.iloc[0]["average_high_entry"]
-            self.current_low_average_entry = params.iloc[0]["average_low_entry"]
+            self.current_high_entry = params.iloc[0]["high_entry"]
+            self.current_low_entry = params.iloc[0]["low_entry"]
 
-            self.current_high_average_exit = params.iloc[0]["average_high_exit"]
-            self.current_low_average_exit = params.iloc[0]["average_low_exit"]
+            self.current_high_exit = params.iloc[0]["high_exit"]
+            self.current_low_exit = params.iloc[0]["low_exit"]
 
             self.current_average_true_range = params.iloc[0]["average_true_range"]
             self.current_dollar_volatility = params.iloc[0]["dollar_volatility"]
@@ -148,9 +148,9 @@ class BackTest(object):
 
         # Open long position
         if self.order_not_exists() and self.trades_left > 0 and not self.short_is_active:
-            if self.current_high_average_entry:
-                if current_price > self.current_high_average_entry:
-                    # print("current price", current_price, "high average", self.current_high_average_entry)
+            if self.current_high_entry:
+                if current_price > self.current_high_entry:
+                    # print("current price", current_price, "high average", self.current_high_entry)
                     if self.trades_left == 4:
                         print("buy initial trade")
                         print("current time", current_time,
@@ -186,8 +186,8 @@ class BackTest(object):
 
         # Open short position
         if self.order_not_exists() and self.trades_left > 0 and not self.long_is_active:
-            if self.current_low_average_entry:
-                if current_price < self.current_low_average_entry:
+            if self.current_low_entry:
+                if current_price < self.current_low_entry:
                     if self.trades_left == 4:
                         print("sell initial trade")
                         print("current time", current_time,
@@ -280,14 +280,14 @@ class BackTest(object):
 
         # Take profit
         if self.position(context) != 0 and self.order_not_exists():
-            if self.long_is_active and self.current_low_average_exit:
-                if self.trade_price(context) < current_price < self.current_low_average_exit:
+            if self.long_is_active and self.current_low_exit:
+                if self.trade_price(context) < current_price < self.current_low_exit:
                     order_target_percent(symbol(self.symbol), 0)
                     self.initial_trade_params()
                     print("take profit, close long position")
                     print("portfolio value", context.portfolio.portfolio_value)
-            elif self.short_is_active and self.current_high_average_exit:
-                if self.trade_price(context) > current_price > self.current_high_average_exit:
+            elif self.short_is_active and self.current_high_exit:
+                if self.trade_price(context) > current_price > self.current_high_exit:
                     order_target_percent(symbol(self.symbol), 0)
                     self.initial_trade_params()
                     print("take profit, close short position")
@@ -316,12 +316,12 @@ pf.create_full_tear_sheet(returns, positions=positions, transactions=transaction
 
 # print(result)
 
-# import visualize_data
+import visualize_data
 #
 # columns=["algo_volatility", "algorithm_period_return", "benchmark_period_return", "benchmark_volatility", "shorts_count"]
 #
-# visualize_data.line_chart(result,
-#                           [{"color": "red", "column": "algorithm_period_return"}])#,
+visualize_data.line_chart(result,
+                          [{"color": "red", "column": "algorithm_period_return"}])#,
                             # "color":"orange", "column": "algorithm_volatility",
                             # "color": "blue", "column": "benchmark_period_return"}])
                             # "color":"red", "column": "benchmark_volatility"])
