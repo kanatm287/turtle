@@ -17,12 +17,16 @@ from trading_calendars import always_open
 import back_test_utils as utils
 import pandas as pd
 import zipline
-import sys
 
+import pyfolio as pf
+from IPython import get_ipython
+ipy = get_ipython()
+if ipy is not None:
+    ipy.run_line_magic('matplotlib', 'inline')
 
-# symbol = sys.argv[1]
-# average_true_range_period = sys.argv[2]
-# high_low_period = sys.argv[3]
+# silence warnings
+import warnings
+warnings.filterwarnings('ignore')
 
 
 class BackTest(object):
@@ -280,6 +284,12 @@ class BackTest(object):
                                      data=self.minute_data)
 
 
-result = BackTest(utils.initial_test_params("BTCUSD", 365, 20, 55, 20, 1000000)).performance
+test_params = utils.initial_test_params("BTCUSD", 630, 20, 55, 20, 1000000)
 
-print(result)
+result = BackTest(test_params).performance
+
+returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(result)
+
+pf.create_full_tear_sheet(returns, positions=positions, transactions=transactions, round_trips=True)
+                          # live_start_date='2009-10-22', round_trips=True)
+
