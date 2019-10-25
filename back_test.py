@@ -17,6 +17,7 @@ from trading_calendars import always_open
 import back_test_utils as utils
 import pandas as pd
 import zipline
+import math
 
 import pyfolio as pf
 from IPython import get_ipython
@@ -65,6 +66,8 @@ class BackTest(object):
 
         self.trades_left = 4
 
+        self.last_position_amount = 0
+
         self.performance = self.get_performance()
 
     def initialize(self, context):
@@ -74,20 +77,6 @@ class BackTest(object):
         # context.set_slippage(slippage.NoSlippage())
 
         context.scheduled_data = {}
-
-    def position_not_exists(self, context):
-
-        if context.portfolio.positions[symbol(self.symbol)].amount == 0:
-            return True
-        else:
-            return False
-
-    def position_exists(self, context):
-
-        if context.portfolio.positions[symbol(self.symbol)].amount != 0:
-            return True
-        else:
-            return False
 
     def position(self, context):
 
@@ -99,17 +88,11 @@ class BackTest(object):
 
     def order_not_exists(self):
 
-        if not get_open_orders(symbol(self.symbol)):
-            return True
-        else:
-            return False
+        return not get_open_orders(symbol(self.symbol))
 
     def order_exists(self):
 
-        if get_open_orders(symbol(self.symbol)):
-            return True
-        else:
-            return False
+        return get_open_orders(symbol(self.symbol))
 
     def set_last_hour_params(self, context, current_time):
 
@@ -126,7 +109,24 @@ class BackTest(object):
             self.current_average_true_range = params.iloc[0]["average_true_range"]
             self.current_dollar_volatility = params.iloc[0]["dollar_volatility"]
 
-            self.current_unit_size = 0.01 * context.portfolio.portfolio_value / self.current_dollar_volatility
+            self.current_unit_size = int(math.floor(0.01 * context.portfolio.portfolio_value /
+                                                    self.current_dollar_volatility))
+
+    def calculate_position_in_percent(self, current_price, context):
+
+        print(self.current_dollar_volatility)
+        print(self.current_unit_size)
+
+        position_in_percent = (self.last_position_amount + self.current_unit_size * current_price) / \
+                              context.portfolio.portfolio_value
+
+        print("position in percent", position_in_percent)
+
+        self.last_position_amount = self.last_position_amount + self.current_unit_size * current_price
+
+        print("last position amount", self.last_position_amount)
+
+        return position_in_percent
 
     def initial_trade_params(self):
 
@@ -134,6 +134,9 @@ class BackTest(object):
         self.last_trade_price = None
         self.next_approved_trade_price = None
         self.stop_loss_price = None
+        self.long_is_active = False
+        self.short_is_active = False
+        self.last_position_amount = 0
 
     def handle_data(self, context, data):
 
@@ -147,10 +150,15 @@ class BackTest(object):
         if self.order_not_exists() and self.trades_left > 0 and not self.short_is_active:
             if self.current_high_average_entry:
                 if current_price > self.current_high_average_entry:
+                    # print("current price", current_price, "high average", self.current_high_average_entry)
                     if self.trades_left == 4:
                         print("buy initial trade")
-                        print("current time", current_time, "current price", current_price)
-                        order_target_percent(symbol(self.symbol), self.current_unit_size)
+                        print("current time", current_time,
+                              "current price", current_price,
+                              "unit size", self.current_unit_size,
+                              "current dollar volatility", self.current_dollar_volatility)
+                        order_target_percent(symbol(self.symbol),
+                                             self.calculate_position_in_percent(current_price, context))
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.stop_loss_permission = True
@@ -158,11 +166,16 @@ class BackTest(object):
                         self.long_is_active = True
                         self.short_is_active = False
 
-                    elif self.next_approved_trade_price and \
+                    elif self.stop_loss_price and self.next_approved_trade_price and \
                             self.long_is_active > 0 and current_price > self.next_approved_trade_price:
-                        print("sell additional trade")
-                        print("current time", current_time, "current price", current_price)
-                        order_target_percent(symbol(self.symbol), (5 - self.trades_left) * self.current_unit_size)
+                        print("buy additional trade")
+                        print("current position amount", self.position(context))
+                        print("current time", current_time,
+                              "current price", current_price,
+                              "unit size", self.current_unit_size,
+                              "current dollar volatility", self.current_dollar_volatility)
+                        order_target_percent(symbol(self.symbol),
+                                             self.calculate_position_in_percent(current_price, context))
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.last_trade_price = current_price
@@ -177,20 +190,28 @@ class BackTest(object):
                 if current_price < self.current_low_average_entry:
                     if self.trades_left == 4:
                         print("sell initial trade")
-                        print("current time", current_time, "current price", current_price)
-                        order_target_percent(symbol(self.symbol), -1 * self.current_unit_size)
+                        print("current time", current_time,
+                              "current price", current_price,
+                              "unit size", self.current_unit_size,
+                              "current dollar volatility", self.current_dollar_volatility)
+                        order_target_percent(symbol(self.symbol), -1 *
+                                             self.calculate_position_in_percent(current_price, context))
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.stop_loss_permission = True
                         self.last_trade_price = current_price
                         self.long_is_active = False
                         self.short_is_active = True
-                    elif self.next_approved_trade_price and \
+                    elif self.stop_loss_price and self.next_approved_trade_price and \
                             self.short_is_active and current_price < self.next_approved_trade_price:
                         print("sell additional trade")
-                        print("current time", current_time, "current price", current_price)
-                        order_target_percent(symbol(self.symbol), -(5 - self.trades_left) * self.current_unit_size)
-                        print("position", context.portfolio.positions[symbol(self.symbol)])
+                        print("current position amount", self.position(context))
+                        print("current time", current_time,
+                              "current price", current_price,
+                              "unit size", self.current_unit_size,
+                              "current dollar volatility", self.current_dollar_volatility)
+                        order_target_percent(symbol(self.symbol), -1 *
+                                             self.calculate_position_in_percent(current_price, context))
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.last_trade_price = current_price
@@ -200,7 +221,7 @@ class BackTest(object):
                         pass
 
         # Set stop loss price,
-        if self.order_not_exists() and self.stop_loss_permission:
+        if self.trades_left == 3 and self.trade_price(context) and self.stop_loss_permission:
             print("last traded price", self.trade_price(context))
             if self.long_is_active:
                 self.stop_loss_price = self.trade_price(context) - (2 * self.current_average_true_range)
@@ -239,7 +260,7 @@ class BackTest(object):
                       "next approved price", self.next_approved_trade_price)
 
         # Stop Loss
-        if self.position_exists(context) and self.order_not_exists():
+        if self.position(context) != 0 and self.order_not_exists():
             if self.long_is_active:
                 if current_price < self.stop_loss_price:
                     order_target_percent(symbol(self.symbol), 0)
@@ -258,7 +279,7 @@ class BackTest(object):
                     self.initial_trade_params()
 
         # Take profit
-        if self.position_exists(context) and self.order_not_exists():
+        if self.position(context) != 0 and self.order_not_exists():
             if self.long_is_active and self.current_low_average_exit:
                 if self.trade_price(context) < current_price < self.current_low_average_exit:
                     order_target_percent(symbol(self.symbol), 0)
@@ -293,3 +314,14 @@ returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(re
 pf.create_full_tear_sheet(returns, positions=positions, transactions=transactions, round_trips=True)
                           # live_start_date='2009-10-22', round_trips=True)
 
+# print(result)
+
+# import visualize_data
+#
+# columns=["algo_volatility", "algorithm_period_return", "benchmark_period_return", "benchmark_volatility", "shorts_count"]
+#
+# visualize_data.line_chart(result,
+#                           [{"color": "red", "column": "algorithm_period_return"}])#,
+                            # "color":"orange", "column": "algorithm_volatility",
+                            # "color": "blue", "column": "benchmark_period_return"}])
+                            # "color":"red", "column": "benchmark_volatility"])
