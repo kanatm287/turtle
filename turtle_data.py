@@ -17,7 +17,7 @@ def average_true_range(period, data_frame):
 
 def dollar_volatility(data_frame):
 
-    data_frame["dollar_volatility"] = data_frame["close"] * data_frame["average_true_range"]
+    data_frame["dollar_volatility"] = data_frame["average_true_range"]
 
     return data_frame
 
