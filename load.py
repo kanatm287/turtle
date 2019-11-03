@@ -6,31 +6,7 @@ import time
 from datetime import datetime, timedelta
 
 
-def request_data(start, stop, symbol, interval, tick_limit, step):
-
-    # Create api instance
-    api_v2 = bitfinex.bitfinex_v2.api_v2()
-
-    data = []
-
-    start = start - step
-
-    while start < stop:
-        start = start + step
-
-    end = start + step
-
-    res = api_v2.candles(symbol=symbol, interval=interval, limit=tick_limit, start=start, end=end)
-    data.extend(res)
-    return data
-
-
 def request_and_generate_dataframe(params, df):
-
-    # print(params)
-
-    # Set step size
-    time_step = 60000000
 
     # Define the start date
     t_start = time.mktime(params[1].timetuple()) * 1000
@@ -48,17 +24,25 @@ def request_and_generate_dataframe(params, df):
 
     names = ["date", "open", "close", "high", "low", "volume"]
 
-    new_df = pd.DataFrame(request_data(start=t_start, stop=t_stop, symbol=params[0].lower(),
-                                       interval=time_frame, tick_limit=limit,
-                                       step=time_step),
-                          columns=names)
+    api_v2 = bitfinex.bitfinex_v2.api_v2()
+
+    response = []
+
+    response.extend(api_v2.candles(
+        symbol=params[0].lower(), interval=time_frame, limit=limit, start=t_stop, end=t_start))
+
+    if df.size > 0:
+        print("accumulated rows", df["date"].size, "is response empty", len(response) == 0)
 
     if df.empty:
-        time.sleep(1.1)
-        return new_df
+        time.sleep(1.01)
+        return pd.DataFrame(response, columns=names)
+    elif len(response) == 0:
+        time.sleep(1.01)
+        return df
     else:
-        time.sleep(1.1)
-        return pd.concat([df, new_df])
+        time.sleep(1.01)
+        return pd.concat([df, pd.DataFrame(response, columns=names)])
 
 
 def generate_date_sequence(end_date_seq):
