@@ -36,12 +36,14 @@ class BackTest(object):
         self.symbol = params["symbol"]
 
         self.minute_data = params["minute_data"]
-        self.hourly_data = params["hour_data"]
+        self.range_data = params["range_data"]
 
         self.start_session = params["start_session"]
         self.end_session = params["end_session"]
 
         self.initial_portfolio_value = params["portfolio_value"]
+
+        self.range_time_frame = params["range_time_frame"]
 
         self.current_high_entry = None
         self.current_low_entry = None
@@ -74,7 +76,7 @@ class BackTest(object):
 
         context.set_benchmark(symbol(self.symbol))
 
-        # context.set_slippage(slippage.NoSlippage())
+        context.set_slippage(slippage.NoSlippage())
 
         context.scheduled_data = {}
 
@@ -94,23 +96,36 @@ class BackTest(object):
 
         return get_open_orders(symbol(self.symbol))
 
-    def set_last_hour_params(self, context, current_time):
+    def set_range_params(self, params, context):
 
-        if current_time.minute == 59:
+        self.current_high_entry = params.iloc[0]["high_entry"]
+        self.current_low_entry = params.iloc[0]["low_entry"]
 
-            params = self.hourly_data.loc[self.hourly_data["date"] == current_time]
+        self.current_high_exit = params.iloc[0]["high_exit"]
+        self.current_low_exit = params.iloc[0]["low_exit"]
 
-            self.current_high_entry = params.iloc[0]["high_entry"]
-            self.current_low_entry = params.iloc[0]["low_entry"]
+        self.current_average_true_range = params.iloc[0]["average_true_range"]
+        self.current_dollar_volatility = params.iloc[0]["dollar_volatility"]
 
-            self.current_high_exit = params.iloc[0]["high_exit"]
-            self.current_low_exit = params.iloc[0]["low_exit"]
+        self.current_unit_size = int(math.floor(0.01 * context.portfolio.portfolio_value /
+                                                self.current_dollar_volatility))
 
-            self.current_average_true_range = params.iloc[0]["average_true_range"]
-            self.current_dollar_volatility = params.iloc[0]["dollar_volatility"]
+    def set_last_range_params(self, context, current_time):
 
-            self.current_unit_size = int(math.floor(0.01 * context.portfolio.portfolio_value /
-                                                    self.current_dollar_volatility))
+        if self.range_time_frame == "hour":
+            if current_time.minute == 59:
+                # print(self.range_time_frame)
+                # print(current_time)
+                self.set_range_params(self.range_data.loc[self.range_data["date"] == current_time], context)
+            else:
+                pass
+        elif self.range_time_frame == "day":
+            if current_time.hour == 23 and current_time.minute == 59:
+                # print(self.range_time_frame)
+                # print(current_time)
+                self.set_range_params(self.range_data.loc[self.range_data["date"] == current_time], context)
+            else:
+                pass
 
     def calculate_position_in_percent(self, current_price, context):
 
@@ -144,7 +159,7 @@ class BackTest(object):
 
         current_time = pd.Timestamp(get_datetime())
 
-        self.set_last_hour_params(context, current_time)
+        self.set_last_range_params(context, current_time)
 
         # Open long position
         if self.order_not_exists() and self.trades_left > 0 and not self.short_is_active:
@@ -305,20 +320,21 @@ class BackTest(object):
                                      data=self.minute_data)
 
 
-test_params = utils.initial_test_params("BTCUSD", 630, 20, 55, 20, 1000000)
+test_params = utils.initial_test_params("BTCUSD", 4380, 20, 55, 20, 1000000, "day")
 
 result = BackTest(test_params).performance
 
 # returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(result)
-#
+
 # pf.create_full_tear_sheet(returns, positions=positions, transactions=transactions, round_trips=True)
 #                           # live_start_date='2009-10-22', round_trips=True)
 
 # print(result)
 
-import visualize_data
-
+# import visualize_data
 
 # columns=["algo_volatility", "algorithm_period_return", "benchmark_period_return", "benchmark_volatility", "shorts_count"]
-#
-visualize_data.algo_vs_benchmark(result, "algorithm_period_return", "benchmark_period_return")
+
+# visualize_data.algo_vs_benchmark(result, "algorithm_period_return", "benchmark_period_return")
+
+result.to_csv("./" + symbol + "_result.csv", header=True)
