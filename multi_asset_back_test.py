@@ -129,17 +129,29 @@ class BackTest(object):
 
     def set_range_params(self, params, context, current_symbol):
 
-        self.current_high_entry[current_symbol] = params.iloc[0]["high_entry"]
-        self.current_low_entry[current_symbol] = params.iloc[0]["low_entry"]
+        if params.size > 0:
 
-        self.current_high_exit[current_symbol] = params.iloc[0]["high_exit"]
-        self.current_low_exit[current_symbol] = params.iloc[0]["low_exit"]
+            self.current_high_entry[current_symbol] = params.iloc[0]["high_entry"]
+            self.current_low_entry[current_symbol] = params.iloc[0]["low_entry"]
 
-        self.current_average_true_range[current_symbol] = params.iloc[0]["average_true_range"]
-        self.current_dollar_volatility[current_symbol] = params.iloc[0]["dollar_volatility"]
+            self.current_high_exit[current_symbol] = params.iloc[0]["high_exit"]
+            self.current_low_exit[current_symbol] = params.iloc[0]["low_exit"]
 
-        self.current_unit_size[current_symbol] = int(math.floor(0.01 * context.portfolio.portfolio_value /
-                                                                self.current_dollar_volatility[current_symbol]))
+            self.current_average_true_range[current_symbol] = params.iloc[0]["average_true_range"]
+            self.current_dollar_volatility[current_symbol] = params.iloc[0]["dollar_volatility"]
+
+            self.current_unit_size[current_symbol] = int(math.floor(0.01 * context.portfolio.portfolio_value /
+                                                                    self.current_dollar_volatility[current_symbol]))
+        else:
+            self.current_high_entry[current_symbol] = None
+            self.current_low_entry[current_symbol] = None
+            print(current_symbol)
+            print("range params", params)
+            print(self.current_high_exit[current_symbol],
+                  self.current_low_exit[current_symbol],
+                  self.current_average_true_range[current_symbol],
+                  self.current_dollar_volatility[current_symbol],
+                  self.current_unit_size[current_symbol])
 
     def set_last_range_params(self, context, current_time, current_symbol):
 
@@ -165,9 +177,6 @@ class BackTest(object):
                 pass
 
     def calculate_position_in_percent(self, current_price, context, current_symbol):
-
-        print(self.current_dollar_volatility)
-        print(self.current_unit_size)
 
         position_in_percent = (self.last_position_amount[current_symbol] + self.current_unit_size[current_symbol] *
                                current_price) / context.portfolio.portfolio_value
@@ -289,7 +298,7 @@ class BackTest(object):
             if self.trades_left[current_symbol] == 3 and self.trade_price(context, current_symbol) \
                     and self.stop_loss_permission[current_symbol]:
                 print("last traded price for symbol", current_symbol, self.trade_price(context, current_symbol))
-                if self.long_is_active:
+                if self.long_is_active[current_symbol]:
                     self.stop_loss_price[current_symbol] = self.trade_price(context, current_symbol) - \
                                                            (2 * self.current_average_true_range[current_symbol])
                     print("set stop loss for long", self.stop_loss_price[current_symbol], "for symbol", current_symbol)
@@ -383,9 +392,12 @@ class BackTest(object):
                                      data=self.minute_data)
 
 
-symbols = ["BTCUSD", "ETHUSD", "LTCUSD"]
+symbols = ["BTCUSD", "ETHUSD", "XRPUSD"]
 
-test_params = utils.multi_asset_initial_test_params(symbols, 365, 20, 55, 20, 1000000, "hour")
+cross_symbols = {"XRPBTC": {"long": "XRPUSD", "short": "BTCUSD"},
+                 "ETHBTC": {"long": "ETHUSD", "short": "BTCUSD"}}
+
+test_params = utils.multi_asset_initial_test_params(symbols, 365, 20, 55, 20, 1000000, "day")
 
 result = BackTest(test_params).performance
 
@@ -398,3 +410,5 @@ columns = ["algo_volatility",
            "shorts_count"]
 
 visualize_data.algo_vs_benchmark(result, columns[1], columns[2])
+
+result.to_csv("./" + "_".join(symbols) + "_result.csv", header=True)
