@@ -320,7 +320,9 @@ class BackTest(object):
                                      data=self.minute_data)
 
 
-test_params = utils.initial_test_params("BTCUSD", 4380, 20, 55, 20, 1000000, "day")
+symbol = "BTCUSD"
+
+test_params = utils.initial_test_params(symbol, 4380, 20, 55, 20, 1000000, "hour")
 
 result = BackTest(test_params).performance
 
@@ -329,12 +331,16 @@ result = BackTest(test_params).performance
 # pf.create_full_tear_sheet(returns, positions=positions, transactions=transactions, round_trips=True)
 #                           # live_start_date='2009-10-22', round_trips=True)
 
-# print(result)
+print(result)
 
-# import visualize_data
+import visualize_data
 
-# columns=["algo_volatility", "algorithm_period_return", "benchmark_period_return", "benchmark_volatility", "shorts_count"]
+columns = ["algo_volatility",
+           "algorithm_period_return",
+           "benchmark_period_return",
+           "benchmark_volatility",
+           "shorts_count"]
 
-# visualize_data.algo_vs_benchmark(result, "algorithm_period_return", "benchmark_period_return")
+visualize_data.algo_vs_benchmark(result, columns[1], columns[2])
 
 result.to_csv("./" + symbol + "_result.csv", header=True)
