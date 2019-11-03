@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 import turtle_data
 import hourly_data
 import pre_process
+import daily_data
 
 
 def algo_vs_benchmark(data_frame, algo, benchmark):
@@ -52,6 +53,7 @@ def candle_sticks(data_frame):
 
 
 # hour_data_frame = turtle_data.prepare(hourly_data.generate(pre_process.minute_data("BTCUSD", 55)), 20, 55, 20)
+# daily_data_frame = turtle_data.prepare(daily_data.generate(pre_process.minute_data("BTCUSD", 55)), 20, 55, 20)
 
 # candle_sticks(hour_data_frame)
 
@@ -65,11 +67,12 @@ def candle_sticks(data_frame):
 #            "average_true_range"]
 
 # hour_data_frame = hour_data_frame.set_index("date")
+# daily_data_frame = daily_data_frame.set_index("date")
 #
-# line_chart(hour_data_frame.head(1000),
+# line_chart(daily_data_frame.head(1000),
 #            [{"color": "red", "column": "close"},
-#             {"color": "green", "column": "average_high_entry"},
-#             {"color": "blue", "column": "average_low_entry"},
+#             {"color": "green", "column": "high_entry"},
+#             {"color": "blue", "column": "low_entry"},
 #             {"color": "blue", "column": "average_true_range"}])  # ,
 #             # {"color": "brown", "column": "average_high_exit"},
 #             # {"color": "black", "column": "average_low_exit"}])
