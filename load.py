@@ -32,16 +32,21 @@ def request_and_generate_dataframe(params, df):
         symbol=params[0].lower(), interval=time_frame, limit=limit, start=t_stop, end=t_start))
 
     if df.size > 0:
-        print("accumulated rows", df["date"].size, "is response empty", len(response) == 0)
+        print("accumulated rows", df["date"].size,
+              "is response empty", len(response) == 0,
+              "number of rows in response", len(response))
+
+    elif response[0] == "error":
+        print(params[0], response)
 
     if df.empty:
-        time.sleep(1.01)
+        time.sleep(1.05)
         return pd.DataFrame(response, columns=names)
-    elif len(response) == 0:
-        time.sleep(1.01)
+    elif len(response) == 0 or response[0] == "error":
+        time.sleep(1.05)
         return df
     else:
-        time.sleep(1.01)
+        time.sleep(1.05)
         return pd.concat([df, pd.DataFrame(response, columns=names)])
 
 
