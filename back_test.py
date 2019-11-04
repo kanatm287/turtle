@@ -8,7 +8,8 @@ from zipline.api import \
     date_rules, \
     time_rules, \
     record, \
-    set_slippage
+    set_slippage, \
+    set_benchmark
 
 
 from zipline.finance import slippage
@@ -74,7 +75,7 @@ class BackTest(object):
 
     def initialize(self, context):
 
-        context.set_benchmark(symbol(self.symbol))
+        set_benchmark(symbol(self.symbol))
 
         context.set_slippage(slippage.NoSlippage())
 
@@ -172,8 +173,9 @@ class BackTest(object):
                               "current price", current_price,
                               "unit size", self.current_unit_size,
                               "current dollar volatility", self.current_dollar_volatility)
-                        order_target_percent(symbol(self.symbol),
-                                             self.calculate_position_in_percent(current_price, context))
+                        # order_target_percent(symbol(self.symbol),
+                        #                      self.calculate_position_in_percent(current_price, context))
+                        order(symbol(self.symbol), self.current_unit_size)
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.stop_loss_permission = True
@@ -189,8 +191,9 @@ class BackTest(object):
                               "current price", current_price,
                               "unit size", self.current_unit_size,
                               "current dollar volatility", self.current_dollar_volatility)
-                        order_target_percent(symbol(self.symbol),
-                                             self.calculate_position_in_percent(current_price, context))
+                        # order_target_percent(symbol(self.symbol),
+                        #                      self.calculate_position_in_percent(current_price, context))
+                        order(symbol(self.symbol), self.current_unit_size)
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.last_trade_price = current_price
@@ -209,8 +212,9 @@ class BackTest(object):
                               "current price", current_price,
                               "unit size", self.current_unit_size,
                               "current dollar volatility", self.current_dollar_volatility)
-                        order_target_percent(symbol(self.symbol), -1 *
-                                             self.calculate_position_in_percent(current_price, context))
+                        # order_target_percent(symbol(self.symbol), -1 *
+                        #                      self.calculate_position_in_percent(current_price, context))
+                        order(symbol(self.symbol), -1 * self.current_unit_size)
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.stop_loss_permission = True
@@ -225,8 +229,9 @@ class BackTest(object):
                               "current price", current_price,
                               "unit size", self.current_unit_size,
                               "current dollar volatility", self.current_dollar_volatility)
-                        order_target_percent(symbol(self.symbol), -1 *
-                                             self.calculate_position_in_percent(current_price, context))
+                        # order_target_percent(symbol(self.symbol), -1 *
+                        #                      self.calculate_position_in_percent(current_price, context))
+                        order(symbol(self.symbol), -1 * self.current_unit_size)
                         self.trades_left = self.trades_left - 1
                         self.price_change_permission = True
                         self.last_trade_price = current_price
@@ -320,9 +325,9 @@ class BackTest(object):
                                      data=self.minute_data)
 
 
-symbol = "BTCUSD"
+# symbol = "BTCUSD"
 
-test_params = utils.initial_test_params(symbol, 4380, 20, 55, 20, 1000000, "hour")
+test_params = utils.initial_test_params("BTCUSD", 4380, 20, 55, 20, 1000000, "hour")
 
 result = BackTest(test_params).performance
 
@@ -343,4 +348,4 @@ columns = ["algo_volatility",
 
 visualize_data.algo_vs_benchmark(result, columns[1], columns[2])
 
-result.to_csv("./" + symbol + "_result.csv", header=True)
+result.to_csv("./result.csv", header=True)
