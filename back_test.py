@@ -123,7 +123,7 @@ class BackTest(object):
         elif self.range_time_frame == "day":
             if current_time.hour == 23 and current_time.minute == 59:
                 # print(self.range_time_frame)
-                print(current_time)
+                # print(current_time)
                 self.set_range_params(self.range_data.loc[self.range_data["date"] == current_time], context)
             else:
                 pass
@@ -233,6 +233,7 @@ class BackTest(object):
                               "current price", current_price,
                               "unit size", self.current_unit_size,
                               "current dollar volatility", self.current_dollar_volatility)
+                        print(data.history(symbol(self.symbol), 'close', 10, '1m'))
                         # order_target_percent(symbol(self.symbol), -1 *
                         #                      self.calculate_position_in_percent(current_price, context))
                         order(symbol(self.symbol), -1 * self.current_unit_size)

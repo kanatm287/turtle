@@ -52,6 +52,8 @@ def initial_test_params(symbol,
 
     minute_data_frame = pre_process.minute_data(symbol, days_to_load)
 
+    range_data_frame = None
+
     if range_time_frame == "hour":
         range_data_frame = turtle_data.prepare(hourly_data.generate(minute_data_frame),
                                                average_true_range_period,
@@ -67,7 +69,7 @@ def initial_test_params(symbol,
             "portfolio_value": initial_balance,
             "minute_data": generate_minute_test_data(symbol, minute_data_frame),
             "range_data": range_data_frame,
-            "start_session": start_date(minute_data_frame) + timedelta(days=int(math.ceil(entry_high_low_period/24))),
+            "start_session": start_date(minute_data_frame) + timedelta(days=entry_high_low_period),
             "end_session": end_date(minute_data_frame),
             "range_time_frame": range_time_frame}
 
@@ -92,7 +94,7 @@ def multi_asset_initial_test_params(symbols,
 
         minute_data_frame = pre_process.minute_data(symbol, days_to_load)
 
-        symbol_start_session = start_date(minute_data_frame) + timedelta(days=int(math.ceil(entry_high_low_period/24)))
+        symbol_start_session = start_date(minute_data_frame) + timedelta(days=entry_high_low_period/24)
 
         symbol_end_session = end_date(minute_data_frame)
 
@@ -102,6 +104,7 @@ def multi_asset_initial_test_params(symbols,
             end_session = symbol_end_session
 
         elif start_session > symbol_end_session:
+
             start_session = symbol_end_session
 
         test_minute_data = generate_multi_asset_minute_test_data(symbol, minute_data_frame, test_minute_data)
