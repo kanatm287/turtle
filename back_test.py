@@ -191,6 +191,10 @@ class BackTest(object):
                               "current price", current_price,
                               "unit size", self.current_unit_size,
                               "current dollar volatility", self.current_dollar_volatility)
+                        # print(data.history(symbol(self.symbol), 'open', 10, '1m'))
+                        # print(data.history(symbol(self.symbol), 'high', 10, '1m'))
+                        # print(data.history(symbol(self.symbol), 'low', 10, '1m'))
+                        print(data.history(symbol(self.symbol), 'close', 10, '1m'))
                         # order_target_percent(symbol(self.symbol),
                         #                      self.calculate_position_in_percent(current_price, context))
                         order(symbol(self.symbol), self.current_unit_size)
@@ -304,13 +308,15 @@ class BackTest(object):
                 if self.trade_price(context) < current_price < self.current_low_exit:
                     order_target_percent(symbol(self.symbol), 0)
                     self.initial_trade_params()
-                    print("take profit, close long position")
+                    print("current low exit range", self.current_low_exit)
+                    print("take profit, close long position current price", current_price)
                     print("portfolio value", context.portfolio.portfolio_value)
             elif self.short_is_active and self.current_high_exit:
                 if self.trade_price(context) > current_price > self.current_high_exit:
                     order_target_percent(symbol(self.symbol), 0)
                     self.initial_trade_params()
-                    print("take profit, close short position")
+                    print("current high exit range", self.current_high_exit)
+                    print("take profit, close short position current price", current_price)
                     print("portfolio value", context.portfolio.portfolio_value)
 
     def get_performance(self):
@@ -327,7 +333,7 @@ class BackTest(object):
 
 # symbol = "BTCUSD"
 
-test_params = utils.initial_test_params("BTCUSD", 4380, 20, 55, 20, 1000000, "hour")
+test_params = utils.initial_test_params("BTCUSD", 4380, 20, 55, 20, 1000000, "day")
 
 result = BackTest(test_params).performance
 
@@ -335,8 +341,6 @@ result = BackTest(test_params).performance
 
 # pf.create_full_tear_sheet(returns, positions=positions, transactions=transactions, round_trips=True)
 #                           # live_start_date='2009-10-22', round_trips=True)
-
-print(result)
 
 import visualize_data
 
