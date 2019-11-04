@@ -123,7 +123,7 @@ class BackTest(object):
         elif self.range_time_frame == "day":
             if current_time.hour == 23 and current_time.minute == 59:
                 # print(self.range_time_frame)
-                # print(current_time)
+                print(current_time)
                 self.set_range_params(self.range_data.loc[self.range_data["date"] == current_time], context)
             else:
                 pass
