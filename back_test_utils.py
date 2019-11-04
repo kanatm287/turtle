@@ -138,3 +138,71 @@ def multi_asset_initial_test_params(symbols,
             "start_session": start_session + time_delta,
             "end_session": end_session,
             "range_time_frame": range_time_frame}
+
+
+def multi_asset_with_cross_initial_test_params(symbols,
+                                               cross_symbols,
+                                               days_to_load,
+                                               average_true_range_period,
+                                               entry_high_low_period,
+                                               exit_high_low_period,
+                                               initial_balance,
+                                               range_time_frame):
+
+    test_minute_data = OrderedDict()
+
+    range_data_frame = {}
+
+    start_session = None
+
+    end_session = None
+
+    time_delta = None
+
+    for symbol in symbols:
+
+        if symbol in cross_symbols:
+            minute_data_frame = pre_process.synthetic_minute_data(cross_symbols[symbol]["long"],
+                                                                  cross_symbols[symbol]["short"])
+        else:
+            minute_data_frame = pre_process.minute_data(symbol, days_to_load)
+
+        symbol_start_session = start_date(minute_data_frame)
+
+        symbol_end_session = end_date(minute_data_frame)
+
+        if not start_session:
+
+            start_session = symbol_start_session
+            end_session = symbol_end_session
+
+        elif start_session > symbol_end_session:
+
+            start_session = symbol_end_session
+
+        test_minute_data = generate_multi_asset_minute_test_data(symbol, minute_data_frame, test_minute_data)
+
+        if range_time_frame == "hour":
+            time_delta = timedelta(hours=entry_high_low_period)
+            range_data_frame[symbol] = turtle_data.prepare(hourly_data.generate(minute_data_frame),
+                                                           average_true_range_period,
+                                                           entry_high_low_period,
+                                                           exit_high_low_period)
+        elif range_time_frame == "day":
+            time_delta = timedelta(days=entry_high_low_period)
+            range_data_frame[symbol] = turtle_data.prepare(daily_data.generate(minute_data_frame),
+                                                           average_true_range_period,
+                                                           entry_high_low_period,
+                                                           exit_high_low_period)
+
+    panel = pd.Panel(test_minute_data)
+    panel.minor_axis = ["open", "high", "low", "close", "volume"]
+
+    return {"symbols": symbols,
+            "cross_symbols": cross_symbols,
+            "portfolio_value": initial_balance,
+            "minute_data": panel,
+            "range_data": range_data_frame,
+            "start_session": start_session + time_delta,
+            "end_session": end_session,
+            "range_time_frame": range_time_frame}
