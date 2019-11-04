@@ -176,20 +176,6 @@ class BackTest(object):
             else:
                 pass
 
-    def calculate_position_in_percent(self, current_price, context, current_symbol):
-
-        position_in_percent = (self.last_position_amount[current_symbol] + self.current_unit_size[current_symbol] *
-                               current_price) / context.portfolio.portfolio_value
-
-        print("position in percent for symbol", current_symbol, position_in_percent)
-
-        self.last_position_amount[current_symbol] = \
-            self.last_position_amount[current_symbol] + self.current_unit_size[current_symbol] * current_price
-
-        print("last position amount for symbol", current_symbol, self.last_position_amount)
-
-        return position_in_percent
-
     def initial_trade_params(self, current_symbol):
 
         self.trades_left[current_symbol] = 4
@@ -224,9 +210,6 @@ class BackTest(object):
                                   "current price", current_price,
                                   "unit size", self.current_unit_size[current_symbol],
                                   "current dollar volatility", self.current_dollar_volatility[current_symbol])
-                            # order_target_percent(symbol(current_symbol),
-                            #                      self.calculate_position_in_percent(
-                            #                          current_price, context, current_symbol))
                             order(symbol(current_symbol), self.current_unit_size[current_symbol])
                             self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
                             self.price_change_permission[current_symbol] = True
@@ -244,9 +227,6 @@ class BackTest(object):
                                   "current price", current_price,
                                   "unit size", self.current_unit_size[current_symbol],
                                   "current dollar volatility", self.current_dollar_volatility[current_symbol])
-                            # order_target_percent(symbol(current_symbol),
-                            #                      self.calculate_position_in_percent(
-                            #                          current_price, context, current_symbol))
                             order(symbol(current_symbol), self.current_unit_size[current_symbol])
                             self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
                             self.price_change_permission[current_symbol] = True
@@ -398,10 +378,7 @@ class BackTest(object):
 
 symbols = ["BTCUSD", "ETHUSD", "XRPUSD"]
 
-cross_symbols = {"XRPBTC": {"long": "XRPUSD", "short": "BTCUSD"},
-                 "ETHBTC": {"long": "ETHUSD", "short": "BTCUSD"}}
-
-test_params = utils.multi_asset_initial_test_params(symbols, 4380, 20, 55, 20, 1000000, "day")
+test_params = utils.multi_asset_initial_test_params(symbols, 365, 20, 55, 20, 1000000, "day")
 
 result = BackTest(test_params).performance
 

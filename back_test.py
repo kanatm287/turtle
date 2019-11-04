@@ -331,17 +331,13 @@ class BackTest(object):
                                      data_frequency="minute",
                                      data=self.minute_data)
 
-
-# symbol = "BTCUSD"
-
-test_params = utils.initial_test_params("BTCUSD", 4380, 20, 55, 20, 1000000, "day")
+test_params = utils.initial_test_params("BTCUSD", 365, 20, 55, 20, 1000000, "day")
 
 result = BackTest(test_params).performance
 
 # returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(result)
 
 # pf.create_full_tear_sheet(returns, positions=positions, transactions=transactions, round_trips=True)
-#                           # live_start_date='2009-10-22', round_trips=True)
 
 import visualize_data
 
