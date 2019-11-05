@@ -142,6 +142,7 @@ def multi_asset_initial_test_params(symbols,
 
 def multi_asset_with_cross_initial_test_params(symbols,
                                                cross_symbols,
+                                               forbidden_symbols,
                                                days_to_load,
                                                average_true_range_period,
                                                entry_high_low_period,
@@ -172,13 +173,14 @@ def multi_asset_with_cross_initial_test_params(symbols,
         symbol_end_session = end_date(minute_data_frame)
 
         if not start_session:
-
             start_session = symbol_start_session
+        elif start_session < symbol_start_session:
+            start_session = symbol_start_session
+
+        if not end_session:
             end_session = symbol_end_session
-
-        elif start_session > symbol_end_session:
-
-            start_session = symbol_end_session
+        elif end_session > symbol_end_session:
+            end_session = symbol_end_session
 
         test_minute_data = generate_multi_asset_minute_test_data(symbol, minute_data_frame, test_minute_data)
 
@@ -195,11 +197,14 @@ def multi_asset_with_cross_initial_test_params(symbols,
                                                            entry_high_low_period,
                                                            exit_high_low_period)
 
+        print(symbol, start_session, end_session)
+
     panel = pd.Panel(test_minute_data)
     panel.minor_axis = ["open", "high", "low", "close", "volume"]
 
     return {"symbols": symbols,
             "cross_symbols": cross_symbols,
+            "forbidden_symbols": forbidden_symbols,
             "portfolio_value": initial_balance,
             "minute_data": panel,
             "range_data": range_data_frame,

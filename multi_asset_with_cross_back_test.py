@@ -10,9 +10,9 @@ from zipline.api import \
     record, \
     set_slippage
 
-
-from zipline.finance import slippage
 from trading_calendars import always_open
+from zipline.finance import slippage
+from datetime import timedelta
 
 import back_test_utils as utils
 import pandas as pd
@@ -36,6 +36,8 @@ class BackTest(object):
         self.symbols = params["symbols"]
 
         self.cross_symbols = params["cross_symbols"]
+
+        self.forbidden_symbols = params["forbidden_symbols"]
 
         self.minute_data = params["minute_data"]
         self.range_data = params["range_data"]
@@ -124,11 +126,17 @@ class BackTest(object):
 
     def position(self, context, current_symbol):
 
-        return context.portfolio.positions[symbol(current_symbol)].amount
+        if current_symbol in self.cross_symbols:
+            return self.cross_symbols_positions[current_symbol]["long"]
+        else:
+            return context.portfolio.positions[symbol(current_symbol)].amount
 
     def trade_price(self, context, current_symbol):
 
-        return context.portfolio.positions[symbol(current_symbol)].cost_basis
+        if current_symbol in self.cross_symbols:
+            return self.last_trade_price[current_symbol]
+        else:
+            return context.portfolio.positions[symbol(current_symbol)].cost_basis
 
     def order_not_exists(self, current_symbol):
 
@@ -249,6 +257,12 @@ class BackTest(object):
               "maximum high" if action == "buy" else "minimum low",
               self.current_high_entry[current_symbol] if action == "buy" else self.current_low_entry[current_symbol])
 
+        print("trades left", self.trades_left[current_symbol])
+        print("price change permission", self.price_change_permission[current_symbol])
+        print("stop loss permission", self.stop_loss_permission[current_symbol])
+        print("long is active", self.long_is_active[current_symbol])
+        print("short is active", self.short_is_active[current_symbol])
+
         if current_symbol not in self.cross_symbols:
             pass
         else:
@@ -259,7 +273,6 @@ class BackTest(object):
 
         print("set trade params for symbol", current_symbol)
         print("current time", current_time, "current price", current_price)
-        print("trades left", self.trades_left[current_symbol])
         print("ATR/2", self.current_average_true_range[current_symbol] / 2,
               "next approved price", self.next_approved_trade_price[current_symbol])
 
@@ -281,171 +294,185 @@ class BackTest(object):
 
             self.set_last_range_params(context, current_time, current_symbol)
 
-            # Open long position
-            if self.order_not_exists(current_symbol) and self.trades_left[current_symbol] > 0 \
-                    and not self.short_is_active[current_symbol]:
-                if self.current_high_entry[current_symbol]:
-                    if current_price > self.current_high_entry[current_symbol]:
+            if current_symbol not in self.forbidden_symbols:
+
+                # Open long position
+                if self.order_not_exists(current_symbol) and self.trades_left[current_symbol] > 0 \
+                        and not self.short_is_active[current_symbol]:
+                    if self.current_high_entry[current_symbol]:
+                        if current_price > self.current_high_entry[current_symbol]:
+                            if self.trades_left[current_symbol] == 4:
+                                print("buy initial trade", current_symbol)
+                                if self.is_cross_symbol(current_symbol):
+                                    self.open_cross_symbol_position("buy", current_symbol)
+                                else:
+                                    order(symbol(current_symbol), self.current_unit_size[current_symbol])
+                                    self.last_position_amount[current_symbol] = \
+                                        self.last_position_amount[current_symbol] + \
+                                        self.current_unit_size[current_symbol]
+                                self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
+                                self.price_change_permission[current_symbol] = True
+                                self.stop_loss_permission[current_symbol] = True
+                                self.last_trade_price[current_symbol] = current_price
+                                self.long_is_active[current_symbol] = True
+                                self.short_is_active[current_symbol] = False
+                                self.open_position_log("buy", current_time, current_price, current_symbol)
+
+                            elif self.stop_loss_price[current_symbol] \
+                                    and self.next_approved_trade_price[current_symbol] \
+                                    and self.long_is_active[current_symbol] > 0 \
+                                    and current_price > self.next_approved_trade_price[current_symbol]:
+                                print("buy additional trade", current_symbol)
+                                if self.is_cross_symbol(current_symbol):
+                                    self.open_cross_symbol_position("buy", current_symbol)
+                                else:
+                                    order(symbol(current_symbol), self.current_unit_size[current_symbol])
+                                    self.last_position_amount[current_symbol] = \
+                                        self.last_position_amount[current_symbol] + \
+                                        self.current_unit_size[current_symbol]
+                                self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
+                                self.price_change_permission[current_symbol] = True
+                                self.last_trade_price[current_symbol] = current_price
+                                self.long_is_active[current_symbol] = True
+                                self.short_is_active[current_symbol] = False
+                                self.open_position_log("buy", current_time, current_price, current_symbol)
+                            else:
+                                pass
+
+                # Open short position
+                if self.order_not_exists(current_symbol) and self.trades_left[current_symbol] > 0\
+                        and not self.long_is_active[current_symbol]:
+                    if self.current_low_entry[current_symbol]:
+                        if current_price < self.current_low_entry[current_symbol]:
+                            if self.trades_left[current_symbol] == 4:
+                                print("sell initial trade", current_symbol)
+                                if self.is_cross_symbol(current_symbol):
+                                    self.open_cross_symbol_position("sell", current_symbol)
+                                else:
+                                    order(symbol(current_symbol), -1 * self.current_unit_size[current_symbol])
+                                    self.last_position_amount[current_symbol] = \
+                                        self.last_position_amount[current_symbol] + \
+                                        self.current_unit_size[current_symbol]
+                                self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
+                                self.price_change_permission[current_symbol] = True
+                                self.stop_loss_permission[current_symbol] = True
+                                self.last_trade_price[current_symbol] = current_price
+                                self.long_is_active[current_symbol] = False
+                                self.short_is_active[current_symbol] = True
+                                self.open_position_log("sell", current_time, current_price, current_symbol)
+
+                            elif self.stop_loss_price[current_symbol] \
+                                    and self.next_approved_trade_price[current_symbol] \
+                                    and self.short_is_active[current_symbol] \
+                                    and current_price < self.next_approved_trade_price[current_symbol]:
+                                print("sell additional trade", current_symbol)
+                                if self.is_cross_symbol(current_symbol):
+                                    self.open_cross_symbol_position("sell", current_symbol)
+                                else:
+                                    order(symbol(current_symbol), -1 * self.current_unit_size[current_symbol])
+                                    self.last_position_amount[current_symbol] = \
+                                        self.last_position_amount[current_symbol] + \
+                                        self.current_unit_size[current_symbol]
+                                self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
+                                self.price_change_permission[current_symbol] = True
+                                self.last_trade_price[current_symbol] = current_price
+                                self.long_is_active[current_symbol] = False
+                                self.short_is_active[current_symbol] = True
+                                self.open_position_log("sell", current_time, current_price, current_symbol)
+
+                # Set stop loss price,
+                if self.trades_left[current_symbol] == 3 and self.trade_price(context, current_symbol) \
+                        and self.stop_loss_permission[current_symbol]:
+                    print("last traded price for symbol", current_symbol, self.trade_price(context, current_symbol))
+                    if self.long_is_active[current_symbol]:
+                        self.stop_loss_price[current_symbol] = self.trade_price(context, current_symbol) - \
+                                                               (2 * self.current_average_true_range[current_symbol])
+                        print("set stop loss for long", self.stop_loss_price[current_symbol],
+                              "for symbol", current_symbol)
+                        self.stop_loss_permission[current_symbol] = False
+                    elif self.short_is_active[current_symbol]:
+                        self.stop_loss_price[current_symbol] = self.trade_price(context, current_symbol) + \
+                                                               (2 * self.current_average_true_range[current_symbol])
+                        print("set stop loss for short", self.stop_loss_price[current_symbol],
+                              "for symbol", current_symbol)
+                        self.stop_loss_permission[current_symbol] = False
+                    print("position for symbol", current_symbol, self.position(context, current_symbol))
+
+                # Calculate next approved trade price
+                if self.last_trade_price[current_symbol] and self.price_change_permission[current_symbol]:
+                    if self.long_is_active[current_symbol]:
                         if self.trades_left[current_symbol] == 4:
-                            print("buy initial trade", current_symbol)
-                            self.open_position_log("buy", current_time, current_price, current_symbol)
-                            if self.is_cross_symbol(current_symbol):
-                                self.open_cross_symbol_position("buy", current_symbol)
-                            else:
-                                order(symbol(current_symbol), self.current_unit_size[current_symbol])
-                                self.last_position_amount[current_symbol] = \
-                                    self.last_position_amount[current_symbol] + self.current_unit_size[current_symbol]
-                            self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
-                            self.price_change_permission[current_symbol] = True
-                            self.stop_loss_permission[current_symbol] = True
-                            self.last_trade_price[current_symbol] = current_price
-                            self.long_is_active[current_symbol] = True
-                            self.short_is_active[current_symbol] = False
-
-                        elif self.stop_loss_price[current_symbol] and self.next_approved_trade_price[current_symbol] \
-                                and self.long_is_active[current_symbol] > 0 \
-                                and current_price > self.next_approved_trade_price[current_symbol]:
-                            print("buy additional trade", current_symbol)
-                            self.open_position_log("buy", current_time, current_price, current_symbol)
-                            if self.is_cross_symbol(current_symbol):
-                                self.open_cross_symbol_position("buy", current_symbol)
-                            else:
-                                order(symbol(current_symbol), self.current_unit_size[current_symbol])
-                                self.last_position_amount[current_symbol] = \
-                                    self.last_position_amount[current_symbol] + self.current_unit_size[current_symbol]
-                            self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
-                            self.price_change_permission[current_symbol] = True
-                            self.last_trade_price[current_symbol] = current_price
-                            self.long_is_active[current_symbol] = True
-                            self.short_is_active[current_symbol] = False
+                            self.next_approved_trade_price[current_symbol] = \
+                                self.trade_price(context, current_symbol) + \
+                                self.current_average_true_range[current_symbol] / 2
                         else:
-                            pass
+                            self.next_approved_trade_price[current_symbol] = \
+                                self.last_trade_price[current_symbol] + \
+                                self.current_average_true_range[current_symbol] / 2
+                        self.price_change_permission[current_symbol] = False
+                        self.set_trade_params_log(current_symbol, current_time, current_price)
 
-            # Open short position
-            if self.order_not_exists(current_symbol) and self.trades_left[current_symbol] > 0\
-                    and not self.long_is_active[current_symbol]:
-                if self.current_low_entry[current_symbol]:
-                    if current_price < self.current_low_entry[current_symbol]:
+                    elif self.short_is_active[current_symbol]:
                         if self.trades_left[current_symbol] == 4:
-                            print("sell initial trade", current_symbol)
-                            self.open_position_log("sell", current_time, current_price, current_symbol)
+                            self.next_approved_trade_price[current_symbol] = \
+                                self.trade_price(context, current_symbol) - \
+                                self.current_average_true_range[current_symbol] / 2
+                        else:
+                            self.next_approved_trade_price[current_symbol] = \
+                                self.last_trade_price[current_symbol] - \
+                                self.current_average_true_range[current_symbol] / 2
+                        self.price_change_permission[current_symbol] = False
+                        self.set_trade_params_log(current_symbol, current_time, current_price)
+
+                # Stop Loss
+                if self.position(context, current_symbol) != 0 and self.order_not_exists(current_symbol):
+                    if self.long_is_active[current_symbol]:
+                        if current_price < self.stop_loss_price[current_symbol]:
                             if self.is_cross_symbol(current_symbol):
-                                self.open_cross_symbol_position("sell", current_symbol)
+                                self.close_cross_symbol_position("buy", current_symbol)
                             else:
-                                order(symbol(current_symbol), -1 * self.current_unit_size[current_symbol])
-                                self.last_position_amount[current_symbol] = \
-                                    self.last_position_amount[current_symbol] + self.current_unit_size[current_symbol]
-                            self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
-                            self.price_change_permission[current_symbol] = True
-                            self.stop_loss_permission[current_symbol] = True
-                            self.last_trade_price[current_symbol] = current_price
-                            self.long_is_active[current_symbol] = False
-                            self.short_is_active[current_symbol] = True
-                        elif self.stop_loss_price[current_symbol] and self.next_approved_trade_price[current_symbol] \
-                                and self.short_is_active[current_symbol] \
-                                and current_price < self.next_approved_trade_price[current_symbol]:
-                            print("sell additional trade", current_symbol)
-                            self.open_position_log("sell", current_time, current_price, current_symbol)
-                            if self.is_cross_symbol("sell", current_symbol):
-                                self.open_cross_symbol_position(current_symbol)
+                                order(symbol(current_symbol), -1 * self.last_position_amount[current_symbol])
+                            self.initial_trade_params(current_symbol)
+                            self.set_stop_loss_logs("buy", context, current_symbol, current_time, current_price)
+                    elif self.short_is_active[current_symbol]:
+                        if current_price > self.stop_loss_price[current_symbol]:
+                            if self.is_cross_symbol(current_symbol):
+                                self.close_cross_symbol_position("sell", current_symbol)
                             else:
-                                order(symbol(current_symbol), -1 * self.current_unit_size[current_symbol])
-                                self.last_position_amount[current_symbol] = \
-                                    self.last_position_amount[current_symbol] + self.current_unit_size[current_symbol]
-                            self.trades_left[current_symbol] = self.trades_left[current_symbol] - 1
-                            self.price_change_permission[current_symbol] = True
-                            self.last_trade_price[current_symbol] = current_price
-                            self.long_is_active[current_symbol] = False
-                            self.short_is_active[current_symbol] = True
-                        else:
-                            pass
+                                order(symbol(current_symbol), self.last_position_amount[current_symbol])
+                            self.initial_trade_params(current_symbol)
+                            self.set_stop_loss_logs("sell", context, current_symbol, current_time, current_price)
 
-            # Set stop loss price,
-            if self.trades_left[current_symbol] == 3 and self.trade_price(context, current_symbol) \
-                    and self.stop_loss_permission[current_symbol]:
-                print("last traded price for symbol", current_symbol, self.trade_price(context, current_symbol))
-                if self.long_is_active[current_symbol]:
-                    self.stop_loss_price[current_symbol] = self.trade_price(context, current_symbol) - \
-                                                           (2 * self.current_average_true_range[current_symbol])
-                    print("set stop loss for long", self.stop_loss_price[current_symbol], "for symbol", current_symbol)
-                    self.stop_loss_permission[current_symbol] = False
-                elif self.short_is_active[current_symbol]:
-                    self.stop_loss_price[current_symbol] = self.trade_price(context, current_symbol) + \
-                                                           (2 * self.current_average_true_range[current_symbol])
-                    print("set stop loss for short", self.stop_loss_price[current_symbol], "for symbol", current_symbol)
-                    self.stop_loss_permission[current_symbol] = False
-                print("position for symbol", current_symbol, self.position(context, current_symbol))
-
-            # Calculate next approved trade price
-            if self.last_trade_price[current_symbol] and self.price_change_permission[current_symbol]:
-                if self.long_is_active[current_symbol]:
-                    if self.trades_left[current_symbol] == 4:
-                        self.next_approved_trade_price[current_symbol] = \
-                            self.trade_price(context, current_symbol) + \
-                            self.current_average_true_range[current_symbol] / 2
-                    else:
-                        self.next_approved_trade_price[current_symbol] = \
-                            self.last_trade_price[current_symbol] + \
-                            self.current_average_true_range[current_symbol] / 2
-                    self.price_change_permission[current_symbol] = False
-                    self.set_trade_params_log(current_symbol, current_time, current_price)
-
-                elif self.short_is_active[current_symbol]:
-                    if self.trades_left[current_symbol] == 4:
-                        self.next_approved_trade_price[current_symbol] = \
-                            self.trade_price(context, current_symbol) - \
-                            self.current_average_true_range[current_symbol] / 2
-                    else:
-                        self.next_approved_trade_price[current_symbol] = \
-                            self.last_trade_price[current_symbol] - self.current_average_true_range[current_symbol] / 2
-                    self.price_change_permission[current_symbol] = False
-                    self.set_trade_params_log(current_symbol, current_time, current_price)
-
-            # Stop Loss
-            if self.position(context, current_symbol) != 0 and self.order_not_exists(current_symbol):
-                if self.long_is_active[current_symbol]:
-                    if current_price < self.stop_loss_price[current_symbol]:
-                        if self.is_cross_symbol(current_symbol):
-                            self.close_cross_symbol_position(current_symbol)
-                        else:
-                            order(symbol(current_symbol), -1 * self.last_position_amount[current_symbol])
-                        self.initial_trade_params(current_symbol)
-                        self.set_stop_loss_logs("buy", context, current_symbol, current_time, current_price)
-                elif self.short_is_active[current_symbol]:
-                    if current_price > self.stop_loss_price[current_symbol]:
-                        if self.is_cross_symbol(current_symbol):
-                            self.close_cross_symbol_position(current_symbol)
-                        else:
-                            order(symbol(current_symbol), self.last_position_amount[current_symbol])
-                        self.initial_trade_params(current_symbol)
-                        self.set_stop_loss_logs("sell", context, current_symbol, current_time, current_price)
-
-            # Take profit
-            if self.position(context, current_symbol) != 0 and self.order_not_exists(current_symbol):
-                if self.long_is_active[current_symbol] and self.current_low_exit[current_symbol]:
-                    if self.trade_price(context, current_symbol) < current_price < \
-                            self.current_low_exit[current_symbol]:
-                        if self.is_cross_symbol(current_symbol):
-                            self.close_cross_symbol_position(current_symbol)
-                        else:
-                            order(symbol(current_symbol), -1 * self.last_position_amount[current_symbol])
-                        self.initial_trade_params(current_symbol)
-                        print("take profit, close long position for symbol", current_symbol)
-                        print("portfolio value", context.portfolio.portfolio_value)
-                elif self.short_is_active[current_symbol] and self.current_high_exit[current_symbol]:
-                    if self.trade_price(context, current_symbol) > current_price > \
-                            self.current_high_exit[current_symbol]:
-                        if self.is_cross_symbol(current_symbol):
-                            self.close_cross_symbol_position(current_symbol)
-                        else:
-                            order(symbol(current_symbol), self.last_position_amount[current_symbol])
-                        self.initial_trade_params(current_symbol)
-                        print("take profit, close short position for symbol", current_symbol)
-                        print("portfolio value", context.portfolio.portfolio_value)
+                # Take profit
+                if self.position(context, current_symbol) != 0 and self.order_not_exists(current_symbol):
+                    if self.long_is_active[current_symbol] and self.current_low_exit[current_symbol]:
+                        if self.trade_price(context, current_symbol) < current_price < \
+                                self.current_low_exit[current_symbol]:
+                            if self.is_cross_symbol(current_symbol):
+                                self.close_cross_symbol_position("buy", current_symbol)
+                            else:
+                                order(symbol(current_symbol), -1 * self.last_position_amount[current_symbol])
+                            self.initial_trade_params(current_symbol)
+                            print("take profit, close long position for symbol", current_symbol)
+                            print("portfolio value", context.portfolio.portfolio_value)
+                    elif self.short_is_active[current_symbol] and self.current_high_exit[current_symbol]:
+                        if self.trade_price(context, current_symbol) > current_price > \
+                                self.current_high_exit[current_symbol]:
+                            if self.is_cross_symbol(current_symbol):
+                                self.close_cross_symbol_position("sell", current_symbol)
+                            else:
+                                order(symbol(current_symbol), self.last_position_amount[current_symbol])
+                            self.initial_trade_params(current_symbol)
+                            print("take profit, close short position for symbol", current_symbol)
+                            print("portfolio value", context.portfolio.portfolio_value)
 
     def get_performance(self):
 
-        return zipline.run_algorithm(start=self.start_session,
+        start_session = self.end_session - timedelta(days=365) + timedelta(minutes=1)
+
+        print(self.start_session if start_session < self.start_session else start_session)
+
+        return zipline.run_algorithm(start=self.start_session if start_session < self.start_session else start_session,
                                      end=self.end_session,
                                      initialize=self.initialize,
                                      trading_calendar=always_open.AlwaysOpenCalendar(),
@@ -455,12 +482,23 @@ class BackTest(object):
                                      data=self.minute_data)
 
 
-symbols = ["BTCUSD", "ETHUSD", "XRPUSD", "XRPBTC", "ETHBTC"]
+symbols = ["BTCUSD", "XRPUSD", "XRPBTC"]
 
 cross_symbols = {"XRPBTC": {"long": "XRPUSD", "short": "BTCUSD"},
                  "ETHBTC": {"long": "ETHUSD", "short": "BTCUSD"}}
 
-test_params = utils.multi_asset_with_cross_initial_test_params(symbols, cross_symbols, 365, 20, 55, 20, 1000000, "day")
+# fill base symbols of cross symbol if you want to run single cross symbol or cross symbols only
+forbidden_symbols = []
+
+test_params = utils.multi_asset_with_cross_initial_test_params(symbols,
+                                                               cross_symbols,
+                                                               forbidden_symbols,
+                                                               365,
+                                                               20,
+                                                               55,
+                                                               20,
+                                                               1000000,
+                                                               "day")
 
 result = BackTest(test_params).performance
 
@@ -474,4 +512,8 @@ columns = ["algo_volatility",
 
 visualize_data.algo_vs_benchmark(result, columns[1], columns[2])
 
-result.to_csv("./" + "_".join(symbols) + "_result.csv", header=True)
+result_string = list(set(symbols) - set(forbidden_symbols))
+
+result_string = "_".join(result_string) if len(result_string) != 1 else result_string[0]
+
+result.to_csv("./" + result_string + "_result.csv", header=True)
