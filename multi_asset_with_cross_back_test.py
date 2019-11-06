@@ -17,6 +17,7 @@ from datetime import timedelta
 import back_test_utils as utils
 import pandas as pd
 import zipline
+import const
 import math
 
 import pyfolio as pf
@@ -48,6 +49,11 @@ class BackTest(object):
         self.initial_portfolio_value = params["portfolio_value"]
 
         self.range_time_frame = params["range_time_frame"]
+
+        self.days_to_trade = params["days_to_trade"]
+        self.start_timedelta = params["start_timedelta"]
+
+        self.benchmark_symbol = params["benchmark_symbol"]
 
         self.current_high_entry = {}
         self.current_low_entry = {}
@@ -118,7 +124,7 @@ class BackTest(object):
 
     def initialize(self, context):
 
-        context.set_benchmark(symbol("BTCUSD"))
+        context.set_benchmark(symbol(self.benchmark_symbol))
 
         context.set_slippage(slippage.NoSlippage())
 
@@ -468,11 +474,13 @@ class BackTest(object):
 
     def get_performance(self):
 
-        start_session = self.end_session - timedelta(days=365) + timedelta(minutes=1)
+        start_session = self.end_session - timedelta(days=self.days_to_trade) + timedelta(minutes=1)
 
         print(self.start_session if start_session < self.start_session else start_session)
 
-        return zipline.run_algorithm(start=self.start_session if start_session < self.start_session else start_session,
+        start = self.start_session if start_session < self.start_session else start_session
+
+        return zipline.run_algorithm(start=start + self.start_timedelta,
                                      end=self.end_session,
                                      initialize=self.initialize,
                                      trading_calendar=always_open.AlwaysOpenCalendar(),
@@ -482,23 +490,25 @@ class BackTest(object):
                                      data=self.minute_data)
 
 
-symbols = ["BTCUSD", "XRPUSD", "XRPBTC"]
-
-cross_symbols = {"XRPBTC": {"long": "XRPUSD", "short": "BTCUSD"},
-                 "ETHBTC": {"long": "ETHUSD", "short": "BTCUSD"}}
+symbols = ["BTCUSD", "ETHUSD"]
 
 # fill base symbols of cross symbol if you want to run single cross symbol or cross symbols only
-forbidden_symbols = []
+forbidden_symbols = ["BTCUSD"]
 
-test_params = utils.multi_asset_with_cross_initial_test_params(symbols,
-                                                               cross_symbols,
-                                                               forbidden_symbols,
-                                                               365,
-                                                               20,
-                                                               55,
-                                                               20,
-                                                               1000000,
-                                                               "day")
+params = {"symbols": symbols,
+          "cross_symbols": const.cross_symbols,
+          "forbidden_symbols": forbidden_symbols,
+          "days_to_load": 365,
+          "days_to_trade": 730,
+          "average_true_range_period": 20,
+          "entry_period": 55,
+          "exit_period": 20,
+          "initial_balance": 1000000,
+          "time_frame": "day",
+          "benchmark_symbol": "BTCUSD",
+          "data_source": "gemini"}# exchange to load from exchange gemini to load from file
+
+test_params = utils.multi_asset_with_cross_initial_test_params(params)
 
 result = BackTest(test_params).performance
 
