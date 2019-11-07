@@ -89,4 +89,3 @@ def exchange_historical_data(symbol, days_to_load):
 
     return df
 
-

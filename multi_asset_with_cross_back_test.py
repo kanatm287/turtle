@@ -493,7 +493,7 @@ class BackTest(object):
 symbols = ["BTCUSD", "ETHUSD"]
 
 # fill base symbols of cross symbol if you want to run single cross symbol or cross symbols only
-forbidden_symbols = ["BTCUSD"]
+forbidden_symbols = []
 
 params = {"symbols": symbols,
           "cross_symbols": const.cross_symbols,

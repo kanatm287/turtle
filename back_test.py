@@ -331,7 +331,7 @@ class BackTest(object):
                                      data_frequency="minute",
                                      data=self.minute_data)
 
-test_params = utils.initial_test_params("BTCUSD", 365, 20, 55, 20, 1000000, "day")
+test_params = utils.initial_test_params("XRPBTC", 400, 20, 55, 20, 1000000, "day")
 
 result = BackTest(test_params).performance
 
