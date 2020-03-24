@@ -7,7 +7,7 @@ bcolz==0.12.1
 binance==0.3
 bitfinex==0.2.6
 bitfinex-tencars==0.0.3
-bleach==3.1.0
+bleach==3.1.2
 Bottleneck==1.2.1
 certifi==2019.9.11
 cffi==1.13.1
