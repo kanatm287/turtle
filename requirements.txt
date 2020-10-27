@@ -15,7 +15,7 @@ chardet==3.0.4
 Click==7.0
 constantly==15.1.0
 contextlib2==0.6.0.post1
-cryptography==2.8
+cryptography==3.2
 cycler==0.10.0
 cyordereddict==1.0.0
 Cython==0.29.13
