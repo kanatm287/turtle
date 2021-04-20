@@ -1,6 +1,6 @@
 alembic==1.2.1
 attrs==19.3.0
-autobahn==19.10.1
+autobahn==20.12.3
 Automat==0.8.0
 backcall==0.1.0
 bcolz==0.12.1
