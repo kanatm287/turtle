@@ -46,7 +46,7 @@ jupyterlab-server==1.0.6
 kiwisolver==1.1.0
 Logbook==1.5.3
 lru-dict==1.1.6
-lxml==4.4.1
+lxml==4.6.5
 Mako==1.1.0
 MarkupSafe==1.1.1
 matplotlib==3.1.1
