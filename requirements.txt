@@ -59,7 +59,7 @@ ndg-httpsclient==0.5.1
 networkx==1.11
 notebook==6.0.1
 numexpr==2.7.0
-numpy==1.17.3
+numpy==1.22.0
 pandas==0.22.0
 pandas-datareader==0.8.1
 pandocfilters==1.4.2
